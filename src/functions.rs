@@ -1,17 +1,18 @@
-
+/// The current module contain functions that are used for annotation and 
 extern crate bincode;
-
 use std::collections::HashMap;
 use std::io::BufReader;
 use std::path::Path;
 use rayon::prelude::*; 
 use crate::protein_info::*; 
 use crate::annotation_reader::*; 
-
 use std::fs::File;
 use bincode::{serialize_into,deserialize_from};
 use std::io::BufWriter;
 
+/// ### Summary
+/// 
+/// 
 #[inline]
 pub fn annotate_proteins_from_a_tissue(target_protein:&Vec<String>,tissue_name:String,
         annoTable:&HashMap<String,HashMap<String,ProteinInfo>>)->Result<HashMap<String,ProteinInfo>,String>
