@@ -189,39 +189,7 @@ fn generate_a_train_db_by_shuffling(positive_examples:Vec<String>, fold_neg:u32)
     Ok(generate_a_train_db_by_shuffling_rs(positive_examples,fold_neg))
 }
 
-/// ### Signature
-/// generate_a_train_arrays_by_shuffling(positive_examples:List[str], fold_neg:int, max_len:int)->Tuple[Lnp.ndarray,np.ndarray]
-/// ### Summary
-/// Takes a list of positive examples, samples an x fold of negative examples through shuffling where x is determined through the parameters fold_neg
-/// and returns two arrays the first represent the encoded representation for input peptides while the second represent the label of each peptide in the database. 
-/// ### Executioner 
-/// This function is a wrapper function for two main Rust functions: generate_a_train_db_by_shuffling_rs and encode_sequence_rs, for more details regard the execution logic check 
-/// the documentation for these functions.
-/// ### Parameters
-/// positive_examples: A list of peptide sequences representing positive examples
-/// fold_neg: The ration of the negative, i.e. shuffled generated, to the positive examples, e.g. 1 means one positive to 1 negative while 10 means 1 positive to 10 negatives.
-/// max_len: The maximum peptide length, used for padding, longer peptides are trimmed to this length and shorter are zero-padded.   
-/// ### Results
-/// A tuple of two arrays, the first represents encoded peptide sequences which has a shape of (num_peptides, max_length) as a type of u8 while the second array
-/// represent the numerical labels of each peptides, 1 represent positive peptides and 0 represent negative peptides. This array has a shape of (num_peptides,1) and u8 as types. 
-/// 
-#[pyfunction]
-fn generate_a_train_arrays_by_shuffling<'py>(py:Python<'py>,
-        positive_examples:Vec<String>,
-        fold_neg:u32, max_len:usize)->(&'py PyArray<u8,Dim<[usize;2]>>,&'py PyArray<u8,Dim<[usize;2]>>)
-{
-    // create the database which is made from the sequences and the labels
-    let (generated_seq, labels) = generate_a_train_db_by_shuffling_rs(positive_examples,fold_neg);
 
-    // numerical encode the database
-    let encoded_seq = encode_sequence_rs(generated_seq,max_len).to_pyarray(py);
-    
-    // create an array from the labels
-    let labels = Array::from_shape_vec((encoded_seq.shape()[0],1), labels).unwrap().to_pyarray(py);
-
-    // return the results
-    (encoded_seq,labels)
-}
 
 /* 
 #[pyfunction]

@@ -1,7 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}};
 use rayon::prelude::*; 
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, Rng};
 use ndarray::{Array,Ix2};
+use rand_distr::{Normal, Distribution}; 
 
 /// ### Summary
 /// Group peptides by the parent protein
@@ -27,10 +28,10 @@ use ndarray::{Array,Ix2};
 /// expected_res.insert("PEPTIDE".to_string(), vec!["TEST_PEPTIDE_ONE".to_string(),"TEST_PEPTIDE_TWO".to_string()]); 
 /// assert!(expected_res,res); 
 /// ```
-pub fn group_peptides_by_parent_rs(peptides:Vec<String>,proteome:HashMap<String,String>)->HashMap<String,Vec<String>>
+pub fn group_peptides_by_parent_rs(peptides:Vec<String>,proteome:&HashMap<String,String>)->HashMap<String,Vec<String>>
 {
     peptides
-    .into_par_iter()
+    .par_iter()
     .map(|peptide|
         {
             let parent=proteome
@@ -72,6 +73,86 @@ pub fn encode_sequence_rs(input_seq:Vec<String>,max_len:usize)->Array<u8,Ix2>
     // create an array to hold the results
     Array::<u8,Ix2>::from_shape_vec((input_seq.len(), max_len ), res_array).unwrap()
 }
+
+
+#[inline(always)]
+fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome:&HashMap<String,String>)->String
+{
+    let mut sampler_rng=rand::thread_rng(); // create a RNG to sample the target proteins
+    let mut position_sampler=rand::thread_rng(); // create a RNG to sample the position in the protein 
+    let normal = Normal::new(15.0, 3.0).unwrap(); // create a normal distribution to sample the peptide from 
+    // create the target proteins 
+    let target_protein= unrolled_db.choose(&mut sampler_rng).unwrap(); // sample the protein
+    let peptide_length= normal.sample(&mut rand::thread_rng()) as u32 ; // sample the peptide length from a normal distribution 
+    peptide_length=std::cmp::min(21,std::cmp::max(9,v)); // clip the peptide length to be between [9,21]
+    let position_in_backbone=position_sampler.gen_range(0..target_protein.1.len()-(peptide_length+1)); // sample the position in the protein backbone 
+    let sampled_peptide=target_protein.1[position_in_backbone..position_in_backbone+peptide_length].to_string();
+    // check that the peptide is not in positive peptides 
+    if positive_peptides.contains(&sampled_peptide) // if it is there we try again
+    {
+        return sample_a_negative_peptide(positive_peptides,proteome)
+    }
+    else // if not we return a sampled peptide
+    {
+        return sampled_peptide
+    }
+}
+
+
+pub fn generate_negative_by_sampling_rs(positive_peptides:Vec<String>, proteome:&HashMap<String,String>,fold_neg:u32)->(Vec<String>,Vec<u8>)
+{
+    // unroll the database for random sampling 
+    //-----------------------------------------
+    let unrolled_db= proteome
+                .iter()
+                .map(|(name,seq)|{(name.to_owned(),seq.to_owned())})
+                .collect::<Vec<_>>();
+    // set the number of sampled negatives
+    let num_negatives=fold_neg*positive_peptides.len() as u32;
+    // use a thread pool to generate the negatives 
+    //--------------------------------------------
+    let negative_peptides=(0..num_negatives)
+        .into_par_iter() 
+        .map(|_|{sample_a_negative_peptide(&positive_peptides,&proteome)})
+        .collect::<Vec<String>>();
+    // create the labels 
+    //------------------
+    let positive_labels=vec![1;positive_peptides.len()];
+    let negative_labels=vec![0;negative_peptides.len()];
+    //create the combine the positives and negatives and return the results
+    //--------------------
+    let mut sequences=Vec::with_capacity(positive_peptides.len()+negative_peptides.len()); 
+    sequences.append(&mut positive_peptides);
+    sequences.append(&mut negative_peptides);
+
+    let mut labels=Vec::with_capacity(positive_labels.len()+negative_labels.len()); 
+    labels.append(positive_labels); 
+    labels.append(negative_labels); 
+
+    // return the results
+    //-------------------
+    (sequences,labels)    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /// ### Summary
 /// A wrapper function for translating a vector of strings into a vector of vector of integers
