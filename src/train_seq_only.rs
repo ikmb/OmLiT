@@ -147,7 +147,32 @@ fn generate_a_train_arrays_by_shuffling<'py>(py:Python<'py>,
     (encoded_seq,labels)
 }
 
-
+/// ### Signature
+/// generate_train_ds_proteome_sampling_sm(positive_examples:List[str],proteome:Dict[str,str],
+///                                         fold_neg:int,max_len:int,test_size:float)->Tuple[
+///                                                                                     Tuple[np.ndarray,np.ndarray],
+///                                                                                     Tuple[np.ndarray,np.ndarray]]
+/// ### Summary
+/// A rust-optimized function that can be used for sequence only models the function generates negative examples using random sampling from the proteome 
+/// 
+/// ### Parameters
+/// positive_examples: List of string representing positive peptides 
+/// proteome: a dict of protein name and protein sequences
+/// fold_neg: The fold of negative examples an integer representing the ration of positives to negative, if 1 then 1 negative is generated for every positive
+///     meanwhile if it is set to 10 then 10 negative examples are generated from every positive examples.  
+/// max_len: The maximum length to transfer a variable length peptides into a fixed length peptides. Here, shorter peptides are zero padded into this predefined 
+/// sequence length. while longer peptides are trimmed into this length. 
+/// test_size: The size of the test dataset, a float in the range (0,1)
+/// 
+/// ## Returns 
+/// A tuple of two tuples with the following structure
+///                         train_tuple:
+///                               |---> encoded_train_seq:    a tensor with shape(num_train_examples,max_length) and type u8
+///                               |---> encoded_train_label:  a tensor with shape(num_train_examples,1) and type u8
+///                         test_tuple:
+///                               |---> encoded_test_seq:     a tensor with shape(num_train_examples,max_length)and type u8
+///                               |---> encoded_train_label:  a tensor with shape(num_train_examples,1) and type u8
+/// -----------------------------------------------
 #[pyfunction]
 pub fn generate_train_ds_proteome_sampling_sm<'py>(py:Python<'py>, 
             positive_examples:Vec<String>,proteome:HashMap<String,String>,fold_neg:u32,max_len:usize,test_size:f32)->(
