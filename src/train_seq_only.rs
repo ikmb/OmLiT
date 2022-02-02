@@ -11,9 +11,32 @@ use rand;
 use rand::seq::SliceRandom;
 
 
-
+/// ### Signature
+/// prepare_train_ds_shuffling_sm(positive_examples:List[str],fold_neg:int,max_len:int,test_size:float)->Tuple[
+///                                                                                     Tuple[np.ndarray,np.ndarray],
+///                                                                                     Tuple[np.ndarray,np.ndarray]]
+/// ### Summary
+/// A rust-optimized function that can be used for sequence only models the function generates negative examples using shuffling 
+/// 
+/// ### Parameters
+/// positive_examples: List of string representing positive peptides 
+/// fold_neg: The fold of negative examples an integer representing the ration of positives to negative, if 1 then 1 negative is generated for every positive
+///     meanwhile if it is set to 10 then 10 negative examples are generated from every positive examples.  
+/// max_len: The maximum length to transfer a variable length peptides into a fixed length peptides. Here, shorter peptides are zero padded into this predefined 
+/// sequence length. while longer peptides are trimmed into this length. 
+/// test_size: The size of the test dataset, a float in the range (0,1)
+/// 
+/// ## Returns 
+/// A tuple of two tuples with the following structure
+///                         train_tuple:
+///                               |---> encoded_train_seq:    a tensor with shape(num_train_examples,max_length) and type u8
+///                               |---> encoded_train_label:  a tensor with shape(num_train_examples,1) and type u8
+///                         test_tuple:
+///                               |---> encoded_test_seq:     a tensor with shape(num_train_examples,max_length)and type u8
+///                               |---> encoded_train_label:  a tensor with shape(num_train_examples,1) and type u8
+/// -----------------------------------------------
 #[pyfunction]
-pub fn prepare_train_ds_shuffling<'py>(py:Python<'py>, 
+pub fn generate_train_ds_shuffling_sm<'py>(py:Python<'py>, 
             positive_examples:Vec<String>,fold_neg:u32,max_len:usize,test_size:f32)->(
                 (&'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<u8,Dim<[usize;2]>>),
                 (&'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<u8,Dim<[usize;2]>>)
@@ -21,7 +44,7 @@ pub fn prepare_train_ds_shuffling<'py>(py:Python<'py>,
 {
     // check the input is correct
     if positive_examples.len()==0{panic!("Input collection of positive examples is empty");}
-    if test_size >=1.0 || test_size<0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
+    if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
 
     // create the number of examples
     let num_test_example=(test_size*positive_examples.len() as f32 ) as usize;
@@ -84,6 +107,42 @@ pub fn prepare_train_ds_shuffling<'py>(py:Python<'py>,
         (encoded_test_seq,encoded_test_labels),
         (encoded_train_seq,encoded_train_labels)
     )
+}
+
+/// ### Signature
+/// generate_a_train_arrays_by_shuffling(positive_examples:List[str], fold_neg:int, max_len:int)->Tuple[Lnp.ndarray,np.ndarray]
+/// ### Summary
+/// Takes a list of positive examples, samples an x fold of negative examples through shuffling where x is determined through the parameters fold_neg
+/// and returns two arrays the first represent the encoded representation for input peptides while the second represent the label of each peptide in the database. 
+/// ### Executioner 
+/// This function is a wrapper function for two main Rust functions: generate_a_train_db_by_shuffling_rs and encode_sequence_rs, for more details regard the execution logic check 
+/// the documentation for these functions.
+/// ### Parameters
+/// positive_examples: A list of peptide sequences representing positive examples
+/// fold_neg: The ration of the negative, i.e. shuffled generated, to the positive examples, e.g. 1 means one positive to 1 negative while 10 means 1 positive to 10 negatives.
+/// max_len: The maximum peptide length, used for padding, longer peptides are trimmed to this length and shorter are zero-padded.   
+/// ### Results
+/// A tuple of two arrays, the first represents encoded peptide sequences which has a shape of (num_peptides, max_length) as a type of u8 while the second array
+/// represent the numerical labels of each peptides, 1 represent positive peptides and 0 represent negative peptides. This array has a shape of (num_peptides,1) and u8 as types. 
+/// ### Usage
+/// For training a sequence only model on the whole dataset using shuffled negative when a test dataset is not required. e.g in fine-tunning or final training, 
+/// -----------------------------------------------
+#[pyfunction]
+fn generate_a_train_arrays_by_shuffling<'py>(py:Python<'py>,
+        positive_examples:Vec<String>,
+        fold_neg:u32, max_len:usize)->(&'py PyArray<u8,Dim<[usize;2]>>,&'py PyArray<u8,Dim<[usize;2]>>)
+{
+    // create the database which is made from the sequences and the labels
+    let (generated_seq, labels) = generate_a_train_db_by_shuffling_rs(positive_examples,fold_neg);
+
+    // numerical encode the database
+    let encoded_seq = encode_sequence_rs(generated_seq,max_len).to_pyarray(py);
+    
+    // create an array from the labels
+    let labels = Array::from_shape_vec((encoded_seq.shape()[0],1), labels).unwrap().to_pyarray(py);
+
+    // return the results
+    (encoded_seq,labels)
 }
 
 //fn prepare_train_ds_proteome_sampling()
