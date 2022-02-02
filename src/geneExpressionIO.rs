@@ -9,14 +9,14 @@ use rayon::prelude::*;
 ///
 /// A Record type for encoding the data in each data-frame record 
 #[derive(Clone,Debug,Deserialize)]
-struct ExpressionTable
+pub struct ExpressionTable
 {
     gene:Vec<String>,
     tissue:Vec<String>,
     nTPM:Vec<f32>
 }
 
-impl  ExpressionTable 
+impl ExpressionTable 
 {
     /// Create a new expression table 
     pub fn new()->Self
@@ -51,7 +51,7 @@ impl  ExpressionTable
         self.nTPM.push(row[3].parse::<f32>().unwrap());
     }
     /// build a nested hash-map 
-    fn to_hashmap(&self)->HashMap<String,HashMap<String,f32>>
+    pub fn to_hashmap(&self)->HashMap<String,HashMap<String,f32>>
     {
         let unique_tissues=self.get_unique_tissues(); 
         let mut result_hashmap=HashMap::new(); 
@@ -72,7 +72,7 @@ impl  ExpressionTable
         }
         result_hashmap
     }
-    fn to_hashmap_parallel(&self)->HashMap<String,HashMap<String,f32>>
+    pub fn to_hashmap_parallel(&self)->HashMap<String,HashMap<String,f32>>
     {
         let unique_tissues=self.get_unique_tissues(); 
 

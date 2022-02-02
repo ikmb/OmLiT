@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 
 /// The module contains a collection of function that can be used for training sequence only models 
 /// 
@@ -11,8 +10,9 @@ use pyo3::{pyfunction,Python};
 use crate::peptides::{group_by_9mers_rs,generate_a_train_db_by_shuffling_rs,encode_sequence_rs, group_peptides_by_parent_rs,generate_negative_by_sampling_rs}; 
 use rand;
 use rand::seq::SliceRandom;
+use std::collections::HashMap;
 
-
+use crate::{geneExpressionIO::*, expression_db}; 
 /// ### Signature
 /// prepare_train_ds_shuffling_sm(positive_examples:List[str],fold_neg:int,max_len:int,test_size:float)->Tuple[
 ///                                                                                     Tuple[np.ndarray,np.ndarray],
@@ -49,8 +49,8 @@ pub fn generate_train_ds_shuffling_sm<'py>(py:Python<'py>,
     if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
 
     // create the number of examples
-    let num_test_example=(test_size*positive_examples.len() as f32 ) as usize;
-    let num_train_examples= positive_examples.len() as usize - num_test_example;
+    let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
+    let num_train_examples= positive_examples.len() as usize - num_test_examples;
     // first let's group by 9 mers
     let unique_9_mers=group_by_9mers_rs(positive_examples)
             .into_iter()
@@ -62,7 +62,7 @@ pub fn generate_train_ds_shuffling_sm<'py>(py:Python<'py>,
     // Split the data into test and train
     //------------------------------- 
     let test_9mers=unique_9_mers
-                                                    .choose_multiple(&mut rng,num_test_example)
+                                                    .choose_multiple(&mut rng,num_test_examples)
                                                     .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
                                                     .collect::<Vec<_>>();
     let train_9mers=unique_9_mers
@@ -185,8 +185,8 @@ pub fn generate_train_ds_proteome_sampling_sm<'py>(py:Python<'py>,
     if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
 
     // create the number of examples
-    let num_test_example=(test_size*positive_examples.len() as f32 ) as usize;
-    let num_train_examples= positive_examples.len() as usize - num_test_example;
+    let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
+    let num_train_examples= positive_examples.len() as usize - num_test_examples;
     // first let's group by 9 mers
     let unique_9_mers=group_by_9mers_rs(positive_examples)
             .into_iter()
@@ -214,7 +214,7 @@ pub fn generate_train_ds_proteome_sampling_sm<'py>(py:Python<'py>,
     // Split the data into test and train
     //------------------------------- 
     let test_9mers=unique_9_mers
-                                                    .choose_multiple(&mut rng,num_test_example)
+                                                    .choose_multiple(&mut rng,num_test_examples)
                                                     .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
                                                     .collect::<Vec<_>>();
     let train_9mers=unique_9_mers
@@ -281,8 +281,8 @@ pub fn generate_train_ds_same_protein_sampling_sm<'py>(py:Python<'py>,
     if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
 
     // create the number of examples
-    let num_test_example=(test_size*positive_examples.len() as f32 ) as usize;
-    let num_train_examples= positive_examples.len() as usize - num_test_example;
+    let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
+    let num_train_examples= positive_examples.len() as usize - num_test_examples;
     // first let's group by 9 mers
     let unique_9_mers=group_by_9mers_rs(positive_examples)
             .into_iter()
@@ -310,7 +310,7 @@ pub fn generate_train_ds_same_protein_sampling_sm<'py>(py:Python<'py>,
     // Split the data into test and train
     //------------------------------- 
     let test_9mers=unique_9_mers
-                                                    .choose_multiple(&mut rng,num_test_example)
+                                                    .choose_multiple(&mut rng,num_test_examples)
                                                     .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
                                                     .collect::<Vec<_>>();
     let train_9mers=unique_9_mers
@@ -361,4 +361,120 @@ pub fn generate_train_ds_same_protein_sampling_sm<'py>(py:Python<'py>,
         (encoded_train_seq,encoded_train_labels)
     )
 }
-//fn prepare_train_ds_expressed_protein_sampling()
+
+#[pyfunction]
+pub fn generate_train_ds_expressed_protein_sampling_sm<'py>(py:Python<'py>, 
+            positive_examples:Vec<String>,proteome:HashMap<String,String>,
+            path2expression_map:&Path, tissue_name:String, threshold:f32,
+            fold_neg:u32,max_len:usize,test_size:f32)->(
+                (&'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<u8,Dim<[usize;2]>>),
+                (&'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<u8,Dim<[usize;2]>>)
+            )
+{
+    // check the input is correct
+    if positive_examples.len()==0{panic!("Input collection of positive examples is empty");}
+    if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
+
+    let expression_db=ExpressionTable::read_tsv(path2expression_map, None).unwrap().to_hashmap_parallel();
+    let target_tissue_exp_db=match expression_db.get(&tissue_name)
+    {
+        Some(table)=>table,
+        None=>panic!(format!("The provided tissue name:{} does not exist in the database.",tissue_name))
+    }; 
+    // get a list of expressed proteins 
+    //---------------------------------
+    let target_proteins=target_tissue_exp_db
+            .iter()
+            .filter(|(protein_name,exp_level)|exp_level>threshold)
+            .map(|(protein_name,_)|protein_name)
+            .collect::<Vec<_>>();
+    
+    // filter the list of proteomes
+    //-----------------------------
+    let target_proteome=proteome
+        .iter()
+        .filter(|(protein_name,seq)|target_proteins.contains(protein_name))
+        .map(|(protein_name,seq)|(protein_name.clone(),seq.clone()))
+        .collect::<HashMap<_,_>>(); 
+
+    // create the number of examples
+    let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
+    let num_train_examples= positive_examples.len() as usize - num_test_examples;
+    // first let's group by 9 mers
+    let unique_9_mers=group_by_9mers_rs(positive_examples)
+            .into_iter()
+            .collect::<Vec<_>>();
+    
+    // get parent proteins and remove bound peptides
+    //----------------------------------------------
+    let positive_parent=group_peptides_by_parent_rs(positive_examples, &proteome)
+        .into_iter()        
+        .map(|(pep,parents)|parents)
+        .flatten()
+        .collect::<Vec<_>>(); 
+
+    // filter the database from positive proteins
+    //-------------------------------------------
+    let target_proteome=proteome
+        .into_iter()
+        .filter(|(name,seq)| positive_parent.contains(name))
+        .collect::<HashMap<_,_>>(); 
+
+
+    // create a thread for splitting the dataset 
+    let mut rng=rand::thread_rng(); 
+
+    // Split the data into test and train
+    //------------------------------- 
+    let test_9mers=unique_9_mers
+                                                    .choose_multiple(&mut rng,num_test_examples)
+                                                    .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
+                                                    .collect::<Vec<_>>();
+    let train_9mers=unique_9_mers
+                                                    .iter()
+                                                    .filter(|(mer,peptides)| 
+                                                            {
+                                                                for (test_mer, _) in test_9mers.iter()
+                                                                {
+                                                                    if mer ==test_mer{return false}
+                                                                }
+                                                                true
+                                                            }
+                                                        )
+                                                    .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
+                                                    .collect::<Vec<_>>();
+    // Get train and test peptides
+    //----------------------------
+    let test_peptides=test_9mers
+                        .into_iter()
+                        .map(|(mer,peptides)| peptides)
+                        .flatten()
+                        .collect::<Vec<_>>();
+    
+    let train_peptides=train_9mers
+                        .into_iter()
+                        .map(|(mer,peptides)| peptides)
+                        .flatten()
+                        .collect::<Vec<_>>();
+    
+    // Generate train and test dataset using proteome sampling 
+    //-------------------------------------------------------
+    // Prepare and sample the dataset 
+    //-------------------------------
+    let test_database=generate_negative_by_sampling_rs(test_peptides,&target_proteome,fold_neg);
+    let train_database=generate_negative_by_sampling_rs(train_peptides,&target_proteome,fold_neg); 
+
+    // numerically encode the datasets
+    //--------------------------------
+    let encoded_test_seq=encode_sequence_rs(test_database.0,max_len).to_pyarray(py);                           
+    let encoded_test_labels= Array::from_shape_vec((encoded_test_seq.shape()[0],1), test_database.1).unwrap().to_pyarray(py);
+
+
+    let encoded_train_seq=encode_sequence_rs(train_database.0,max_len).to_pyarray(py);                           
+    let encoded_train_labels= Array::from_shape_vec((encoded_train_seq.shape()[0],1), train_database.1).unwrap().to_pyarray(py);
+
+    (
+        (encoded_test_seq,encoded_test_labels),
+        (encoded_train_seq,encoded_train_labels)
+    )
+}

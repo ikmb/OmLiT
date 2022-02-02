@@ -18,7 +18,7 @@ pub mod functions;
 pub mod peptides;
 pub mod expression_db; 
 pub mod train_seq_only; 
-
+pub mod geneExpressionIO; 
 
 /// ### Signature
 /// annotate_proteins(path:str,target_protein:List[str],tissue_name:str)->List[Tuple[str,str,str,float32]]
