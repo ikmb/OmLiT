@@ -11,11 +11,13 @@ use pyo3::prelude::*;
 use crate::peptides::*; 
 use numpy::{ToPyArray, PyArray};
 use pyo3::prelude::{pymodule, PyModule, PyResult, Python};
+
 pub mod annotation_reader; 
 pub mod protein_info; 
 pub mod functions; 
 pub mod peptides;
 pub mod expression_db; 
+pub mod train_seq_only; 
 
 
 /// ### Signature
@@ -121,9 +123,9 @@ fn get_annotated_protein_arrays<'py>(py:Python<'py>,
 }
 
 
-
+/*
 #[pyfunction]
-fn prepare_training_data()
+fn prepare_training_data(){}*/
 
 
 
