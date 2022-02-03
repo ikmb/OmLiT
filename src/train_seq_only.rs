@@ -8,8 +8,9 @@ use pyo3::{pyfunction,Python};
 use crate::peptides::{group_by_9mers_rs,generate_a_train_db_by_shuffling_rs,encode_sequence_rs, group_peptides_by_parent_rs,generate_negative_by_sampling_rs}; 
 use rand;
 use rand::seq::SliceRandom;
-use std::{collections::HashMap, hash::Hash};
-use crate::{geneExpressionIO::*, expression_db};
+use std::path::Path;
+use std::collections::HashMap;
+use crate::geneExpressionIO::*;
 use crate::utils::*; 
 
 /// ### Summary
@@ -36,7 +37,6 @@ fn prepare_train_ds_shuffling(positive_examples:&Vec<String>,fold_neg:u32,test_s
 
     // create the number of examples
     let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
-    let num_train_examples= positive_examples.len() as usize - num_test_examples;
     // first let's group by 9 mers
     let unique_9_mers=group_by_9mers_rs(positive_examples)
             .into_iter()
@@ -53,7 +53,7 @@ fn prepare_train_ds_shuffling(positive_examples:&Vec<String>,fold_neg:u32,test_s
                                                     .collect::<Vec<_>>();
     let train_9mers=unique_9_mers
                                                     .iter()
-                                                    .filter(|(mer,peptides)| 
+                                                    .filter(|(mer,_)| 
                                                             {
                                                                 for (test_mer, _) in test_9mers.iter()
                                                                 {
@@ -68,13 +68,13 @@ fn prepare_train_ds_shuffling(positive_examples:&Vec<String>,fold_neg:u32,test_s
     //----------------------------
     let test_peptides=test_9mers
                         .into_iter()
-                        .map(|(mer,peptides)| peptides)
+                        .map(|(_,peptides)| peptides)
                         .flatten()
                         .collect::<Vec<_>>();
     
     let train_peptides=train_9mers
                         .into_iter()
-                        .map(|(mer,peptides)| peptides)
+                        .map(|(_,peptides)| peptides)
                         .flatten()
                         .collect::<Vec<_>>();
     // Prepare and sample the dataset 
@@ -197,7 +197,6 @@ fn prepare_train_ds_proteome_sampling(positive_examples:&Vec<String>,proteome:&H
 
     // create the number of examples
     let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
-    let num_train_examples= positive_examples.len() as usize - num_test_examples;
     // first let's group by 9 mers
     let unique_9_mers=group_by_9mers_rs(positive_examples)
             .into_iter()
@@ -207,7 +206,7 @@ fn prepare_train_ds_proteome_sampling(positive_examples:&Vec<String>,proteome:&H
     //----------------------------------------------
     let positive_parent=group_peptides_by_parent_rs(positive_examples, &proteome)
         .into_iter()        
-        .map(|(pep,parents)|parents)
+        .map(|(_,parents)|parents)
         .flatten()
         .collect::<Vec<_>>(); 
 
@@ -215,7 +214,8 @@ fn prepare_train_ds_proteome_sampling(positive_examples:&Vec<String>,proteome:&H
     //-------------------------------------------
     let target_proteome=proteome
         .into_iter()
-        .filter(|(name,seq)| !positive_parent.contains(name))
+        .filter(|(name,_)| !positive_parent.contains(name))
+        .map(|(name,seq)|(name.clone(),seq.clone()))
         .collect::<HashMap<_,_>>(); 
 
 
@@ -230,7 +230,7 @@ fn prepare_train_ds_proteome_sampling(positive_examples:&Vec<String>,proteome:&H
                                                     .collect::<Vec<_>>();
     let train_9mers=unique_9_mers
                                                     .iter()
-                                                    .filter(|(mer,peptides)| 
+                                                    .filter(|(mer,_)| 
                                                             {
                                                                 for (test_mer, _) in test_9mers.iter()
                                                                 {
@@ -245,13 +245,13 @@ fn prepare_train_ds_proteome_sampling(positive_examples:&Vec<String>,proteome:&H
     //----------------------------
     let test_peptides=test_9mers
                         .into_iter()
-                        .map(|(mer,peptides)| peptides)
+                        .map(|(_,peptides)| peptides)
                         .flatten()
                         .collect::<Vec<_>>();
     
     let train_peptides=train_9mers
                         .into_iter()
-                        .map(|(mer,peptides)| peptides)
+                        .map(|(_,peptides)| peptides)
                         .flatten()
                         .collect::<Vec<_>>();
     
@@ -343,7 +343,6 @@ fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,proteom
 
     // create the number of examples
     let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
-    let num_train_examples= positive_examples.len() as usize - num_test_examples;
     // first let's group by 9 mers
     let unique_9_mers=group_by_9mers_rs(positive_examples)
             .into_iter()
@@ -353,7 +352,7 @@ fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,proteom
     //----------------------------------------------
     let positive_parent=group_peptides_by_parent_rs(positive_examples, proteome)
         .into_iter()        
-        .map(|(pep,parents)|parents)
+        .map(|(_,parents)|parents)
         .flatten()
         .collect::<Vec<_>>(); 
 
@@ -361,7 +360,8 @@ fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,proteom
     //-------------------------------------------
     let target_proteome=proteome
         .into_iter()
-        .filter(|(name,seq)| positive_parent.contains(name))
+        .filter(|(name,_)| positive_parent.contains(name))
+        .map(|(name,seq)|(name.clone(),seq.clone()))
         .collect::<HashMap<_,_>>(); 
 
 
@@ -376,7 +376,7 @@ fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,proteom
                                                     .collect::<Vec<_>>();
     let train_9mers=unique_9_mers
                                                     .iter()
-                                                    .filter(|(mer,peptides)| 
+                                                    .filter(|(mer,_)| 
                                                             {
                                                                 for (test_mer, _) in test_9mers.iter()
                                                                 {
@@ -391,13 +391,13 @@ fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,proteom
     //----------------------------
     let test_peptides=test_9mers
                         .into_iter()
-                        .map(|(mer,peptides)| peptides)
+                        .map(|(_,peptides)| peptides)
                         .flatten()
                         .collect::<Vec<_>>();
     
     let train_peptides=train_9mers
                         .into_iter()
-                        .map(|(mer,peptides)| peptides)
+                        .map(|(_,peptides)| peptides)
                         .flatten()
                         .collect::<Vec<_>>();
     
@@ -450,7 +450,7 @@ pub fn generate_train_ds_same_protein_sampling_sm<'py>(py:Python<'py>,
             )
 {
     // prepare the train and test datasets through sampling from the same protein 
-    let(train_database,test_database)=prepare_train_ds_same_protein_sampling(&positive_examples,fold_neg,test_size);
+    let(train_database,test_database)=prepare_train_ds_same_protein_sampling(&positive_examples,&proteome,fold_neg,test_size);
     // numerically encode the datasets
     //--------------------------------
     let encoded_test_seq=encode_sequence_rs(test_database.0,max_len).to_pyarray(py);                           
@@ -488,8 +488,8 @@ pub fn generate_train_ds_same_protein_sampling_sm<'py>(py:Python<'py>,
 ///                         test_tuple:
 ///                               |---> test_seq: A vector of string containing the testing peptide sequences
 ///                               |---> test_label:   A vector of u8 containing or representing test label
-fn prepare_train_ds_expressed_protein_sampling(positive_examples:Vec<String>,proteome:HashMap<String,String>,
-    path2expression_map:&Path, tissue_name:String, threshold:f32,
+fn prepare_train_ds_expressed_protein_sampling(positive_examples:&Vec<String>,proteome:&HashMap<String,String>,
+    path2expression_map:&Path, tissue_name:&String, threshold:f32,
     fold_neg:u32,test_size:f32)->((Vec<String>, Vec<u8>),(Vec<String>, Vec<u8>))
 {
     
@@ -498,30 +498,29 @@ fn prepare_train_ds_expressed_protein_sampling(positive_examples:Vec<String>,pro
      if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
  
      let expression_db=ExpressionTable::read_tsv(path2expression_map, None).unwrap().to_hashmap_parallel();
-     let target_tissue_exp_db=match expression_db.get(&tissue_name)
+     let target_tissue_exp_db=match expression_db.get(tissue_name)
      {
          Some(table)=>table,
-         None=>panic!(format!("The provided tissue name:{} does not exist in the database.",tissue_name))
+         None=>panic!("The provided tissue name:{} does not exist in the database.",tissue_name)
      }; 
      // get a list of expressed proteins 
      //---------------------------------
      let target_proteins=target_tissue_exp_db
-             .iter()
-             .filter(|(protein_name,exp_level)|exp_level>threshold)
-             .map(|(protein_name,_)|protein_name)
-             .collect::<Vec<_>>();
+            .iter()
+            .filter(|(_,exp_level)|exp_level>&&threshold)
+            .map(|(protein_name,_)|protein_name.clone())
+            .collect::<Vec<_>>();
      
      // filter the list of proteomes
      //-----------------------------
-     let target_proteome=proteome
+     let exp_proteome=proteome
          .iter()
-         .filter(|(protein_name,seq)|target_proteins.contains(protein_name))
+         .filter(|(protein_name,_)|target_proteins.contains(protein_name))
          .map(|(protein_name,seq)|(protein_name.clone(),seq.clone()))
          .collect::<HashMap<_,_>>(); 
  
      // create the number of examples
      let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
-     let num_train_examples= positive_examples.len() as usize - num_test_examples;
      // first let's group by 9 mers
      let unique_9_mers=group_by_9mers_rs(positive_examples)
              .into_iter()
@@ -531,15 +530,16 @@ fn prepare_train_ds_expressed_protein_sampling(positive_examples:Vec<String>,pro
      //----------------------------------------------
      let positive_parent=group_peptides_by_parent_rs(positive_examples, &proteome)
          .into_iter()        
-         .map(|(pep,parents)|parents)
+         .map(|(_,parents)|parents)
          .flatten()
          .collect::<Vec<_>>(); 
  
      // filter the database from positive proteins
      //-------------------------------------------
-     let target_proteome=proteome
+     let target_proteome=exp_proteome
          .into_iter()
-         .filter(|(name,seq)| positive_parent.contains(name))
+         .filter(|(name,_)| !positive_parent.contains(name))
+         .map(|(name,seq)|(name.clone(),seq.clone()))
          .collect::<HashMap<_,_>>(); 
  
  
@@ -554,7 +554,7 @@ fn prepare_train_ds_expressed_protein_sampling(positive_examples:Vec<String>,pro
                                                      .collect::<Vec<_>>();
      let train_9mers=unique_9_mers
                                                      .iter()
-                                                     .filter(|(mer,peptides)| 
+                                                     .filter(|(mer,_)| 
                                                              {
                                                                  for (test_mer, _) in test_9mers.iter()
                                                                  {
@@ -569,13 +569,13 @@ fn prepare_train_ds_expressed_protein_sampling(positive_examples:Vec<String>,pro
      //----------------------------
      let test_peptides=test_9mers
                          .into_iter()
-                         .map(|(mer,peptides)| peptides)
+                         .map(|(_,peptides)| peptides)
                          .flatten()
                          .collect::<Vec<_>>();
      
      let train_peptides=train_9mers
                          .into_iter()
-                         .map(|(mer,peptides)| peptides)
+                         .map(|(_,peptides)| peptides)
                          .flatten()
                          .collect::<Vec<_>>();
      
@@ -623,15 +623,15 @@ fn prepare_train_ds_expressed_protein_sampling(positive_examples:Vec<String>,pro
 #[pyfunction]
 pub fn generate_train_ds_expressed_protein_sampling_sm<'py>(py:Python<'py>, 
             positive_examples:Vec<String>,proteome:HashMap<String,String>,
-            path2expression_map:&Path, tissue_name:String, threshold:f32,
+            path2expression_map:String, tissue_name:String, threshold:f32,
             fold_neg:u32,max_len:usize,test_size:f32)->(
                 (&'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<u8,Dim<[usize;2]>>),
                 (&'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<u8,Dim<[usize;2]>>)
             )
 {
     // prepare the train and test datasets through sampling from the same protein 
-    let(train_database,test_database)=prepare_train_ds_expressed_protein_sampling(&positive_examples,proteome,
-        path2expression_map,tissue_name,
+    let(train_database,test_database)=prepare_train_ds_expressed_protein_sampling(&positive_examples,&proteome,
+        Path::new(&path2expression_map),&tissue_name,threshold,
         fold_neg,test_size);
 
     // numerically encode the datasets
@@ -668,9 +668,9 @@ pub fn generate_train_ds_expressed_protein_sampling_sm<'py>(py:Python<'py>,
 pub fn generate_train_ds_pm<'py>(py:Python<'py>, 
             positive_examples:HashMap<String,Vec<String>>,
             proteome:Option<HashMap<String,String>>,
-            path2gene_expression:Option<Path>,
+            path2gene_expression:Option<String>,
             tissue_name:Option<String>,
-            path2pseudoSeq:&Path,
+            path2pseudo_seq:String,
             fold_neg:u32,
             exp_threshold:Option<f32>,
             max_len:usize,
@@ -686,67 +686,68 @@ pub fn generate_train_ds_pm<'py>(py:Python<'py>,
 
     // create a functional pointers to methods
     //----------------------------------------
-    match method
+    match method.as_str()
     {
         "shuffle"=>(),
         "prot_sample"=>
         {
-            match proteome
+            match &proteome
             {
-                Some(proteome)=>(),
+                Some(_)=>(),
                 None=>panic!("Method: prot_sample can not be used when the input proteome has not been provided")
             }
         }, 
         "same"=>
         {
-            match proteome
+            match &proteome
             {
-                Some(proteome)=>(),
+                Some(_)=>(),
                 None=>panic!("Method: same can not be used when the input proteome has not been provided")
             }
         },
         "exp_samp"=>
         {
-            match proteome
+            match &proteome
             {
-                Some(proteome)=>(),
+                Some(_)=>(),
                 None=>panic!("Method: same can not be used when the input proteome has not been provided")
             }
-            match path2gene_expression
+            match &path2gene_expression
             {
-                Some(path)=>(),
+                Some(_)=>(),
                 None=>panic!("Method: exp_samp can not be used when the input expression table has not been provided")
             }
-            match tissue_name
+            match &tissue_name
             {
-                Some(path)=>(),
+                Some(_)=>(),
                 None=>panic!("Method: exp_samp can not be used when the input tissue name has not been provided")
             }
         }
-        _=>panic!(format!("Method: {} is currently not supported, only: random, prot_sample, same or exp_samp are supported",method))
+        _=>panic!("Method: {} is currently not supported, only: random, prot_sample, same or exp_samp are supported",method)
     };
     // Read the pseudo-sequences
-    let pseudo_seq=read_pseudo_seq(path2pseudoSeq); 
+    let pseudo_seq=read_pseudo_seq(Path::new(&path2pseudo_seq)); 
 
     // Count the number of entries in the HashMap to generate the results
     //-------------------------------------------------------------------
     let num_entries=fold_neg*positive_examples
                 .iter()
-                .map(|(alleles,peptides)| if peptides.len()>100{return 50;} else {return 0;})
+                .map(|(_,peptides)| if peptides.len()>100{return 50;} else {return 0;})
                 .sum::<u32>(); 
     
     // Compute the average number of test and size examples
     //-----------------------------------------------------
     let num_test_examples=(test_size*num_entries as f32) as u32;
-    let num_train_examples=num_entries-num_test_examples;
+    let num_train_examples=(num_entries-num_test_examples) as usize;
     
     // allocate vectors to hold the results
     //-------------------------------------
     let (mut train_labels,mut train_alleles,mut train_sequences)=(Vec::with_capacity(num_train_examples),
                     Vec::with_capacity(num_train_examples),Vec::with_capacity(num_train_examples));   
 
-    let (mut test_labels,mut test_alleles,mut test_sequences)=(Vec::with_capacity(num_test_examples),
-    Vec::with_capacity(num_test_examples),Vec::with_capacity(num_test_examples));   
+    let (mut test_labels,mut test_alleles,mut test_sequences)=(Vec::with_capacity(num_test_examples as usize),
+    Vec::with_capacity(num_test_examples as usize),Vec::with_capacity(num_test_examples as usize));   
+    //-----------
 
     // loop over alleles and generate 
     //-------------------------------
@@ -754,13 +755,13 @@ pub fn generate_train_ds_pm<'py>(py:Python<'py>,
     {
         if peptides.len()>50{continue;}// check that the number of peptides is above 50 and skip it otherwise
 
-        let ((mut train_seq,mut train_label),(mut test_seq,mut test_label))=match method
+        let ((mut train_seq,mut train_label),(mut test_seq,mut test_label))=match method.as_str()
         {
             "shuffle"=>prepare_train_ds_shuffling(peptides,fold_neg,test_size),
-            "prot_sample"=>prepare_train_ds_proteome_sampling(peptides,&proteome.unwrap(),fold_neg,test_size), 
-            "same"=>prepare_train_ds_same_protein_sampling(peptides,&proteome.unwrap(),fold_neg,test_size),
-            "exp_samp"=>prepare_train_ds_expressed_protein_sampling(peptides,&proteome.unwrap(),
-                            &path2expression_map.unwrap(),tissue_name.unwrap(),exp_threshold.unwrap(),
+            "prot_sample"=>prepare_train_ds_proteome_sampling(peptides,proteome.as_ref().unwrap(),fold_neg,test_size), 
+            "same"=>prepare_train_ds_same_protein_sampling(peptides,&proteome.as_ref().unwrap(),fold_neg,test_size),
+            "exp_samp"=>prepare_train_ds_expressed_protein_sampling(peptides,&proteome.as_ref().unwrap(),
+                            Path::new(&path2gene_expression.as_ref().unwrap()),&tissue_name.as_ref().unwrap(),exp_threshold.unwrap(),
                             fold_neg,test_size),
             _=>panic!("Un supported methods")
         };
@@ -768,12 +769,12 @@ pub fn generate_train_ds_pm<'py>(py:Python<'py>,
         // Extend the allocated vectors
         // extend the training arrays
         //---------------------------
-        train_alleles.append(&mut vec![pseudo_seq.get(allele_name).unwrap();train_seq.len()]);
+        train_alleles.append(&mut vec![pseudo_seq.get(allele_name).unwrap().clone();train_seq.len()]);
         train_sequences.append(&mut train_seq); 
         train_labels.append(&mut train_label);
         // extend the test arrays
         //-----------------------
-        test_alleles.append(&mut vec![pseudo_seq.get(allele_name).unwrap();test_seq.len()]);
+        test_alleles.append(&mut vec![pseudo_seq.get(allele_name).unwrap().clone();test_seq.len()]);
         test_sequences.append(&mut test_seq); 
         test_labels.append(&mut test_label);
     }

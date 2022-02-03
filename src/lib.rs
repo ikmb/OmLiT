@@ -92,7 +92,7 @@ fn annotate_proteins_using_cashed_db(path2cashed_db:String, target_protein:Vec<S
     Ok(annotate_all_proteins_in_one_tissues_using_cashed_db(&Path::new(&path2cashed_db),&target_protein,tissue_name).unwrap())
 }
 
-
+/* 
 #[pyfunction]
 fn get_annotated_protein_arrays<'py>(py:Python<'py>,
         path2cashed_db:String, target_protein:Vec<String>,
@@ -124,6 +124,7 @@ fn get_annotated_protein_arrays<'py>(py:Python<'py>,
     let encoded_d2g=encode_distance_to_glyco(); 
     let gene_exp=encode_gene_expression(); 
 }
+*/
 
 
 /*
@@ -151,7 +152,7 @@ fn prepare_training_data(){}*/
 #[pyfunction]
 fn group_peptide_by_protein(peptides:Vec<String>,proteome:HashMap<String,String>)->PyResult<HashMap<String,Vec<String>>>
 {
-    Ok(group_peptides_by_parent_rs(peptides,&proteome))
+    Ok(group_peptides_by_parent_rs(&peptides,&proteome))
 }
 /// ### Signature
 /// group_by_9mers(peptide:List[str])->Dict[str,List[str]]
@@ -169,7 +170,7 @@ fn group_peptide_by_protein(peptides:Vec<String>,proteome:HashMap<String,String>
 #[pyfunction]
 fn group_by_9mers(peptides:Vec<String>)->PyResult<HashMap<String,Vec<String>>>
 {
-    Ok(group_by_9mers_rs(peptides))
+    Ok(group_by_9mers_rs(&peptides))
 }
 
 /// ### Signature
@@ -224,6 +225,5 @@ fn RustDB(_py: Python, m: &PyModule) -> PyResult<()>
     m.add_function(wrap_pyfunction!(group_by_9mers,m)?)?; 
     m.add_function(wrap_pyfunction!(generate_a_train_db_by_shuffling,m)?)?;
     m.add_function(wrap_pyfunction!(encode_sequence,m)?)?;
-    m.add_function(wrap_pyfunction!(generate_a_train_arrays_by_shuffling,m)?)?;
     Ok(())
 }

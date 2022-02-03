@@ -83,7 +83,7 @@ fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:&Vec
     let normal = Normal::new(15.0, 3.0).unwrap(); // create a normal distribution to sample the peptide from 
     // create the target proteins 
     let target_protein= proteome_as_vec.choose(&mut sampler_rng).unwrap(); // sample the protein
-    let peptide_length= normal.sample(&mut rand::thread_rng()) as usize ; // sample the peptide length from a normal distribution 
+    let mut peptide_length= normal.sample(&mut rand::thread_rng()) as usize ; // sample the peptide length from a normal distribution 
     peptide_length=std::cmp::min(21,std::cmp::max(9,peptide_length)); // clip the peptide length to be between [9,21]
     let position_in_backbone=position_sampler.gen_range(0..target_protein.1.len()-(peptide_length+1)); // sample the position in the protein backbone 
     let sampled_peptide=target_protein.1[position_in_backbone..position_in_backbone+peptide_length].to_string();
@@ -99,7 +99,7 @@ fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:&Vec
 }
 
 
-pub fn generate_negative_by_sampling_rs(positive_peptides:Vec<String>, proteome:&HashMap<String,String>,fold_neg:u32)->(Vec<String>,Vec<u8>)
+pub fn generate_negative_by_sampling_rs(mut positive_peptides:Vec<String>, proteome:&HashMap<String,String>,fold_neg:u32)->(Vec<String>,Vec<u8>)
 {
     // unroll the database for random sampling 
     //-----------------------------------------
@@ -111,7 +111,7 @@ pub fn generate_negative_by_sampling_rs(positive_peptides:Vec<String>, proteome:
     let num_negatives=fold_neg*positive_peptides.len() as u32;
     // use a thread pool to generate the negatives 
     //--------------------------------------------
-    let negative_peptides=(0..num_negatives)
+    let mut negative_peptides=(0..num_negatives)
         .into_par_iter() 
         .map(|_|{sample_a_negative_peptide(&positive_peptides,&unrolled_db)})
         .collect::<Vec<String>>();
@@ -237,7 +237,7 @@ fn translate_pep2num(peptide:&String, max_len:usize)->Vec<u8>
 }
 
 
-pub fn group_by_9mers_rs(peptides:Vec<String>)->HashMap<String,Vec<String>>
+pub fn group_by_9mers_rs(peptides:&Vec<String>)->HashMap<String,Vec<String>>
 {
     get_unique_9_mers(&peptides)
     .into_par_iter()
