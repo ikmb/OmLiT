@@ -18,7 +18,10 @@ pub mod functions;
 pub mod peptides;
 pub mod expression_db; 
 pub mod train_seq_only; 
-pub mod geneExpressionIO; 
+pub mod geneExpressionIO;
+pub mod train_mo_model; 
+pub mod utils;
+
 
 /// ### Signature
 /// annotate_proteins(path:str,target_protein:List[str],tissue_name:str)->List[Tuple[str,str,str,float32]]
@@ -148,7 +151,7 @@ fn prepare_training_data(){}*/
 #[pyfunction]
 fn group_peptide_by_protein(peptides:Vec<String>,proteome:HashMap<String,String>)->PyResult<HashMap<String,Vec<String>>>
 {
-    Ok(group_peptides_by_parent_rs(peptides,proteome))
+    Ok(group_peptides_by_parent_rs(peptides,&proteome))
 }
 /// ### Signature
 /// group_by_9mers(peptide:List[str])->Dict[str,List[str]]

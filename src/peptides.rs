@@ -28,7 +28,7 @@ use rand_distr::{Normal, Distribution};
 /// expected_res.insert("PEPTIDE".to_string(), vec!["TEST_PEPTIDE_ONE".to_string(),"TEST_PEPTIDE_TWO".to_string()]); 
 /// assert!(expected_res,res); 
 /// ```
-pub fn group_peptides_by_parent_rs(peptides:Vec<String>,proteome:&HashMap<String,String>)->HashMap<String,Vec<String>>
+pub fn group_peptides_by_parent_rs(peptides:&Vec<String>,proteome:&HashMap<String,String>)->HashMap<String,Vec<String>>
 {
     peptides
     .par_iter()
@@ -36,10 +36,10 @@ pub fn group_peptides_by_parent_rs(peptides:Vec<String>,proteome:&HashMap<String
         {
             let parent=proteome
             .iter()
-            .filter(|(_,seq)|seq.contains(&peptide))
+            .filter(|(_,seq)|seq.contains(peptide))
             .map(|(name,_)|name.clone())
             .collect::<Vec<_>>();
-            (peptide,parent)
+            (peptide.clone(),parent)
         })
     .collect::<HashMap<_,_>>()
 }
@@ -76,21 +76,21 @@ pub fn encode_sequence_rs(input_seq:Vec<String>,max_len:usize)->Array<u8,Ix2>
 
 
 #[inline(always)]
-fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome:&HashMap<String,String>)->String
+fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:&Vec<(String,String)>)->String
 {
     let mut sampler_rng=rand::thread_rng(); // create a RNG to sample the target proteins
     let mut position_sampler=rand::thread_rng(); // create a RNG to sample the position in the protein 
     let normal = Normal::new(15.0, 3.0).unwrap(); // create a normal distribution to sample the peptide from 
     // create the target proteins 
-    let target_protein= unrolled_db.choose(&mut sampler_rng).unwrap(); // sample the protein
-    let peptide_length= normal.sample(&mut rand::thread_rng()) as u32 ; // sample the peptide length from a normal distribution 
-    peptide_length=std::cmp::min(21,std::cmp::max(9,v)); // clip the peptide length to be between [9,21]
+    let target_protein= proteome_as_vec.choose(&mut sampler_rng).unwrap(); // sample the protein
+    let peptide_length= normal.sample(&mut rand::thread_rng()) as usize ; // sample the peptide length from a normal distribution 
+    peptide_length=std::cmp::min(21,std::cmp::max(9,peptide_length)); // clip the peptide length to be between [9,21]
     let position_in_backbone=position_sampler.gen_range(0..target_protein.1.len()-(peptide_length+1)); // sample the position in the protein backbone 
     let sampled_peptide=target_protein.1[position_in_backbone..position_in_backbone+peptide_length].to_string();
     // check that the peptide is not in positive peptides 
     if positive_peptides.contains(&sampled_peptide) // if it is there we try again
     {
-        return sample_a_negative_peptide(positive_peptides,proteome)
+        return sample_a_negative_peptide(positive_peptides,proteome_as_vec)
     }
     else // if not we return a sampled peptide
     {
@@ -113,12 +113,12 @@ pub fn generate_negative_by_sampling_rs(positive_peptides:Vec<String>, proteome:
     //--------------------------------------------
     let negative_peptides=(0..num_negatives)
         .into_par_iter() 
-        .map(|_|{sample_a_negative_peptide(&positive_peptides,&proteome)})
+        .map(|_|{sample_a_negative_peptide(&positive_peptides,&unrolled_db)})
         .collect::<Vec<String>>();
     // create the labels 
     //------------------
-    let positive_labels=vec![1;positive_peptides.len()];
-    let negative_labels=vec![0;negative_peptides.len()];
+    let mut positive_labels=vec![1;positive_peptides.len()];
+    let mut negative_labels=vec![0;negative_peptides.len()];
     //create the combine the positives and negatives and return the results
     //--------------------
     let mut sequences=Vec::with_capacity(positive_peptides.len()+negative_peptides.len()); 
@@ -126,8 +126,8 @@ pub fn generate_negative_by_sampling_rs(positive_peptides:Vec<String>, proteome:
     sequences.append(&mut negative_peptides);
 
     let mut labels=Vec::with_capacity(positive_labels.len()+negative_labels.len()); 
-    labels.append(positive_labels); 
-    labels.append(negative_labels); 
+    labels.append(&mut positive_labels); 
+    labels.append(&mut negative_labels); 
 
     // return the results
     //-------------------
