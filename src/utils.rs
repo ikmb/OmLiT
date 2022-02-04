@@ -10,7 +10,11 @@ use csv;
 /// ---------------------------
 pub fn read_pseudo_seq(input2file:&Path)->HashMap<String,String>
 {
-    let mut file_reader=csv::ReaderBuilder::new().delimiter(b'\t').from_path(input2file).unwrap(); 
+    let mut file_reader=csv::ReaderBuilder::new()
+                        .has_headers(false)
+                        .delimiter(b'\t')
+                        .from_path(input2file)
+                        .unwrap(); 
     let mut res_map=HashMap::new();
 
     for record in file_reader.records()

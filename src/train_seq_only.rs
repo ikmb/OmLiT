@@ -5,13 +5,16 @@
 use ndarray::{Dim, Array};
 use numpy::{PyArray, ToPyArray};
 use pyo3::{pyfunction,Python};
+use rayon::iter::IntoParallelIterator;
 use crate::peptides::{group_by_9mers_rs,generate_a_train_db_by_shuffling_rs,encode_sequence_rs, group_peptides_by_parent_rs,generate_negative_by_sampling_rs}; 
 use rand;
 use rand::seq::SliceRandom;
+use std::collections::HashSet;
 use std::path::Path;
 use std::collections::HashMap;
 use crate::geneExpressionIO::*;
 use crate::utils::*; 
+use rayon::prelude::*; 
 
 /// ### Summary
 /// The working engine for generating training datasets through shuffling
@@ -782,11 +785,11 @@ pub fn generate_train_ds_pm<'py>(py:Python<'py>,
     //--------------------------------
     let encoded_train_labels= Array::from_shape_vec((train_sequences.len(),1), train_labels).unwrap().to_pyarray(py);
     let encoded_train_peptide_seq=encode_sequence_rs(train_sequences,max_len).to_pyarray(py);
-    let encoded_train_pseudo_seq=encode_sequence_rs(train_alleles,max_len).to_pyarray(py);
+    let encoded_train_pseudo_seq=encode_sequence_rs(train_alleles,34).to_pyarray(py);
 
     let encoded_test_labels= Array::from_shape_vec((test_sequences.len(),1), test_labels).unwrap().to_pyarray(py);
     let encoded_test_peptide_seq=encode_sequence_rs(test_sequences,max_len).to_pyarray(py);
-    let encoded_test_pseudo_seq=encode_sequence_rs(test_alleles,max_len).to_pyarray(py);  
+    let encoded_test_pseudo_seq=encode_sequence_rs(test_alleles,34).to_pyarray(py);  
     
     // return the results 
     //-------------------
@@ -797,6 +800,165 @@ pub fn generate_train_ds_pm<'py>(py:Python<'py>,
 }
 
 // CREATE THE FUNCTIONS
-//#[pyfunction]
-//pub fn generate_train_ds_pm_ipQ<'py>
-//pub fn generate_train_ds_pm_ipQMA<'py>
+#[pyfunction]
+pub fn generate_train_ds_Qd<'py>(py:Python<'py>,path2load_ds:String, path2pseudo_seq:String, test_size:f32, max_len:usize)->(
+    (&'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<u8,Dim<[usize;2]>> ,&'py PyArray<f32,Dim<[usize;2]>>),
+    (&'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<f32,Dim<[usize;2]>>)
+)
+{
+    // Check the test size is valid 
+    if test_size<=0.0 || test_size>1.0
+    {
+        panic!("In-valid test name: expected the test-size to be a float bigger than 0.0 and smaller than 1.0, however, the test size is: {}",test_size);
+    }
+    // Load the training quantitative datasets 
+    //-----------------------------------------
+    let(allele_names,peptides,affinity)=read_Q_table(Path::new(&path2load_ds));
+
+    // Compute the size of the test dataset 
+    //-------------------------------------
+    let num_dp=allele_names.len();
+    let num_test_dp=(num_dp as f32 *test_size) as usize; 
+
+    // Group the peptides by the 9 mers core
+    //--------------------------------------
+    let grouped_by_9mers_core=group_by_9mers_rs(&peptides)
+                    .into_iter()
+                    .collect::<Vec<_>>();
+    
+    // Sample the test size 
+    //---------------------
+    let mut rng=rand::thread_rng(); 
+    let test_peptides_index=grouped_by_9mers_core
+                        .choose_multiple(&mut rng,num_test_dp)
+                        .map(|(_,peptides_from_core)|peptides_from_core.clone())
+                        .flatten()
+                        .collect::<Vec<String>>()
+                        .into_par_iter()
+                        .map(|pep| peptides.iter()
+                                            .enumerate()
+                                            .filter(|(_,peptides_elem)| &&pep==peptides_elem)
+                                            .map(|(idx,_)| idx) 
+                                            .collect::<Vec<_>>()
+                                        )
+                        .flatten()
+                        .collect::<Vec<usize>>()
+                        .iter()
+                        .map(|elem|elem.clone())
+                        .collect::<HashSet<usize>>()
+                        .iter()
+                        .map(|elem|elem.clone())
+                        .collect::<Vec<usize>>();
+    // Extract the index of the binding and non-binding peptides 
+    //----------------------------------------------------------
+    let (mut test_alleles,mut test_peptides,mut test_affinity)=(Vec::with_capacity(num_test_dp),
+                                    Vec::with_capacity(num_test_dp),Vec::with_capacity(num_test_dp));
+    // loop over all elements
+    //-----------------------
+    for elem in test_peptides_index.iter()
+    {
+        test_alleles.push(allele_names[*elem].to_string()); 
+        test_peptides.push(peptides[*elem].to_string());
+        test_affinity.push(affinity[*elem]);
+    }
+    
+    // Allocate the training array
+    //--------------------------------------------------
+    let (mut train_alleles,mut train_peptides,mut train_affinity)=(Vec::with_capacity(num_dp),
+                                    Vec::with_capacity(num_dp),Vec::with_capacity(num_dp));
+
+    // Filling the array using the computed data
+    //----------------------------------------
+    for elem in 0..num_dp
+    {
+        if !test_peptides_index.contains(&elem)
+        {
+            train_alleles.push(allele_names[elem].to_string()); 
+            train_peptides.push(peptides[elem].to_string());
+            train_affinity.push(affinity[elem]);
+        }
+    }
+    // load the psudo sequences 
+    let pseudo_seq_map=read_pseudo_seq(&Path::new(&path2pseudo_seq));
+    // get the sequence of the target alleles
+    //---------------------------------------
+    let train_alleles= train_alleles.iter().map(|allele|pseudo_seq_map.get(allele).unwrap().clone()).collect::<Vec<_>>();
+    let test_alleles= test_alleles.iter().map(|allele|pseudo_seq_map.get(allele).unwrap().clone()).collect::<Vec<_>>();
+    // numerically encode the results
+    //--------------------------------
+   // Numerically encode the datasets
+    //--------------------------------
+    let encoded_train_labels= Array::from_shape_vec((train_alleles.len(),1), train_affinity).unwrap().to_pyarray(py);
+    let encoded_train_peptide_seq=encode_sequence_rs(train_peptides,max_len).to_pyarray(py);
+    let encoded_train_pseudo_seq=encode_sequence_rs(train_alleles,34).to_pyarray(py);
+
+    let encoded_test_labels= Array::from_shape_vec((test_peptides.len(),1), test_affinity).unwrap().to_pyarray(py);
+    let encoded_test_peptide_seq=encode_sequence_rs(test_peptides,max_len).to_pyarray(py);
+    let encoded_test_pseudo_seq=encode_sequence_rs(test_alleles,34).to_pyarray(py);  
+    
+    // return the results 
+    //-------------------
+    (
+        (encoded_train_peptide_seq,encoded_train_pseudo_seq,encoded_train_labels),
+        (encoded_test_peptide_seq,encoded_test_pseudo_seq,encoded_test_labels)
+    )
+}
+
+/// ### Summary 
+/// A helper function for computing and reading the quantitative data 
+/// ------------------------------------------------------------------
+/// ### Parameter
+/// # path2file: The path to the reading files 
+/// ### Returns
+/// a tuple of three vectors, the first is the allele names, the second is peptides sequences and the third one if
+/// a vector of floats representing the allele sequence
+pub fn read_Q_table(path2file:&Path)->(Vec<String>,Vec<String>,Vec<f32>)
+{
+    // load the files to conduct the analysis
+    //---------------------------------------
+    let mut reader=csv::ReaderBuilder::new().delimiter(b'\t').from_path(path2file).unwrap(); // Read the files 
+
+    // Allocate the vectors to fill the results
+    //-----------------------------------------
+    let mut allele_names=Vec::with_capacity(131_009); 
+    let mut peptide_seq=Vec::with_capacity(131_009);
+    let mut affinity=Vec::with_capacity(131_009);
+    
+    // Fill the results 
+    //-----------------
+    for record in reader.records()
+    {
+        let row=record.unwrap(); // getting a string record from the data
+        allele_names.push(parse_allele_names(row[0].to_string())); 
+        peptide_seq.push(row[1].to_string());
+        affinity.push(row[2].parse::<f32>().unwrap())
+    }
+    (allele_names,peptide_seq,affinity)
+}
+
+/// ### Summary
+/// Parse the input allele name and return a copy that is compatible with the pseudo-sequences table 
+/// ### Parameters 
+/// name: A string representing the input allele name
+/// ### Return 
+/// corrected allele names 
+#[inline(always)]
+fn parse_allele_names(name:String)->String
+{
+    match name.contains("DRB")
+    {
+        true =>
+        {
+            name.split("").collect::<Vec<_>>()[1].replace("", "").replace("*", "_").to_string()
+        },
+        false =>
+        {
+            "HLA-".to_owned() + &name.replace("*","").replace(":","")
+        }
+    }
+}
+
+
+//pub fn generate_train_ds_pm_ipQMA<'py>()
+
+//#[cfg(test)]
