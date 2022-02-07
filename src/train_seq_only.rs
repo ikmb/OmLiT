@@ -807,18 +807,10 @@ pub fn generate_train_ds_Qd<'py>(py:Python<'py>,path2load_ds:String, path2pseudo
 )
 {
     // Check the test size is valid 
-    if test_size<=0.0 || test_size>1.0
-    {
-        panic!("In-valid test name: expected the test-size to be a float bigger than 0.0 and smaller than 1.0, however, the test size is: {}",test_size);
-    }
+    if test_size<=0.0 || test_size>1.0{panic!("In-valid test name: expected the test-size to be a float bigger than 0.0 and smaller than 1.0, however, the test size is: {}",test_size);}
     // Load the training quantitative datasets 
     //-----------------------------------------
     let(allele_names,peptides,affinity)=read_Q_table(Path::new(&path2load_ds));
-
-    // Compute the size of the test dataset 
-    //-------------------------------------
-    let num_dp=allele_names.len();
-    let num_test_dp=(num_dp as f32 *test_size) as usize; 
 
     // Group the peptides by the 9 mers core
     //--------------------------------------
@@ -826,6 +818,12 @@ pub fn generate_train_ds_Qd<'py>(py:Python<'py>,path2load_ds:String, path2pseudo
                     .into_iter()
                     .collect::<Vec<_>>();
     
+    
+    // Compute the size of the test dataset 
+    //-------------------------------------
+    let num_dp=grouped_by_9mers_core.len();
+    let num_test_dp=(num_dp as f32 *test_size) as usize; 
+
     // Sample the test size 
     //---------------------
     let mut rng=rand::thread_rng(); 

@@ -76,7 +76,7 @@ pub fn encode_sequence_rs(input_seq:Vec<String>,max_len:usize)->Array<u8,Ix2>
 
 
 #[inline(always)]
-fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:&Vec<(String,String)>)->String
+pub fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:&Vec<(String,String)>)->String
 {
     let mut sampler_rng=rand::thread_rng(); // create a RNG to sample the target proteins
     let mut position_sampler=rand::thread_rng(); // create a RNG to sample the position in the protein 
