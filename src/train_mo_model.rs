@@ -1,30 +1,146 @@
-use std::{collections::{HashMap, HashSet}, path::Path, hash::Hash, iter::FromIterator, ops::RangeBounds};
+use std::{collections::{HashMap, HashSet}, path::Path, hash::Hash, iter::FromIterator, ops::RangeBounds, alloc::LayoutErr};
 
-use ndarray::Dim;
-use numpy::PyArray;
+use ndarray::{Dim, Array, Shape, Ix2};
+use numpy::{PyArray, ToPyArray};
 use pyo3::Python;
 use rand::prelude::{SliceRandom, IteratorRandom};
 use rayon::prelude::*; 
 
-use crate::{functions::read_cashed_db, protein_info::ProteinInfo, utils::read_pseudo_seq, peptides::{group_by_9mers_rs, sample_a_negative_peptide}, group_by_9mers};
+use crate::{functions::read_cashed_db, protein_info::ProteinInfo, utils::read_pseudo_seq, peptides::{group_by_9mers_rs, sample_a_negative_peptide, group_peptides_by_parent_rs, encode_sequence_rs}, group_by_9mers};
 
 pub fn generate_train_based_on_seq_exp<'py>(py:Python<'py>,
         input2prepare:(Vec<String>,Vec<String>,Vec<String>),
                     proteome:HashMap<String,String>, path2cashed_db:String, 
-        tissue_name:String,path2pseudo_seq:String, path2pseudo:String, max_len:usize,
+                    path2pseudo_seq:String, max_len:usize,
         threshold:f32, fold_neg:u32, test_size:f32
     )->(
         /* Train Tensors */
         (&'py PyArray<u8,Dim<[usize;2]>> /*Train pseudo-seq*/, &'py PyArray<u8,Dim<[usize;2]>> /*Train encoded sequence */,
-         &'py PyArray<f32,Dim<[usize;2]>> /*Train expression values*/, &'py PyArray<f32,Dim<[usize;2]>> /* Train labels */), 
+         &'py PyArray<f32,Dim<[usize;2]>> /*Train expression values*/, &'py PyArray<u8,Dim<[usize;2]>> /* Train labels */), 
         
         /* Test Tensors */
         (&'py PyArray<u8,Dim<[usize;2]>> /*Test pseudo-seq*/, &'py PyArray<u8,Dim<[usize;2]>> /*Test encoded sequence */,
-        &'py PyArray<f32,Dim<[usize;2]>> /*Test expression values*/, &'py PyArray<f32,Dim<[usize;2]>> /* Test labels */), 
+        &'py PyArray<f32,Dim<[usize;2]>> /*Test expression values*/, &'py PyArray<u8,Dim<[usize;2]>> /* Test labels */), 
 
-        (Vec<String>,Vec<String>,Vec<String>) // unmapped data points 
+        (Vec<String>,Vec<String>,Vec<String>, Vec<u8>),// unmapped train data points 
+        (Vec<String>,Vec<String>,Vec<String>, Vec<u8>) // unmapped test data points 
     )
 {
+    // Prepare the prelude for the encoders
+    //------------------------------------- 
+    let (train_data, test_data, pseudo_seq
+            ,anno_table)=preparation_prelude(&input2prepare,&proteome,path2cashed_db,path2pseudo_seq,
+            max_len,threshold,fold_neg,test_size);
+    
+    // encode and prepare the training data
+    //-------------------------------------
+    let (encoded_train_data,unmapped_train_data)=prepare_data_for_seq_and_label_data(train_data,
+        &pseudo_seq,max_len,&proteome,&anno_table); 
+    
+    let(encoded_test_data,unmapped_test_data)=prepare_data_for_seq_and_label_data(test_data,
+        &pseudo_seq,max_len,&proteome,&anno_table); 
+
+    //return the results
+    //------------------
+    (
+        (encoded_train_data.0.to_pyarray(py),encoded_train_data.1.to_pyarray(py),encoded_train_data.2.to_pyarray(py),encoded_train_data.3.to_pyarray(py)),
+        (encoded_test_data.0.to_pyarray(py),encoded_test_data.1.to_pyarray(py),encoded_test_data.2.to_pyarray(py),encoded_test_data.3.to_pyarray(py)),
+        unmapped_train_data,
+        unmapped_test_data
+    )
+}
+
+
+fn prepare_data_for_seq_and_label_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
+    pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
+    proteome:&HashMap<String,String>,
+    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
+        (Array<u8,Ix2>/* Encode peptide sequences */,Array<u8,Ix2>/* Encode pseudo-sequences*/,
+        Array<f32,Ix2>/* Encode gene expression*/,Array<u8,Ix2>/* Encoded labels*/)/* The encoded results from the array */, 
+        
+        (Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/)
+        /* The unmapped input */
+    )
+{
+    let group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    // allocate vectors to hold the results 
+    //----------
+    // allocate vectors for holding the mapped data points 
+    let num_dp=data_tuple.0.len()+1000; // an upper bound to avoid missing up with the data 
+    let (mut peptides, mut pseudo_seq, mut gene_expression, mut labels)=(Vec::with_capacity(num_dp),
+    Vec::with_capacity(num_dp), Vec::with_capacity(num_dp), Vec::with_capacity(num_dp)); // iterate over the elements of the array
+    // allocate vectors for holding the unmapped data points 
+    let (mut peptides_unmapped, mut pseudo_seq_unmapped, 
+        mut tissue_unmapped, mut labels_unmapped)=(Vec::with_capacity(num_dp),
+    Vec::with_capacity(num_dp), Vec::with_capacity(num_dp), Vec::with_capacity(num_dp)); // iterate over the elements of the array
+    // Loop over all input data-points
+    //--------------------------------
+    for idx in 0..data_tuple.0.len()/*Loop over all the peptides*/
+    {
+        for protein in group_by_parent.get(&data_tuple.0[idx]).unwrap() /*Loop over all the parent of a peptide*/
+        {
+            match anno_table.get(&data_tuple.2[idx])
+            {
+                Some(tissue_table)=>
+                {
+                    match tissue_table.get(protein)
+                    {
+                        Some(protein_info)=>
+                        {
+                            peptides.push(data_tuple.0[idx].clone());
+                            pseudo_seq.push(pseudo_sequences.get(&data_tuple.1[idx]).unwrap().clone());
+                            gene_expression.push(protein_info.get_expression()); 
+                            labels.push(data_tuple.3[idx].clone())
+                        },
+                        None=>
+                        {
+                            peptides_unmapped.push(data_tuple.0[idx].clone());
+                            pseudo_seq_unmapped.push(data_tuple.1[idx].clone());
+                            tissue_unmapped.push("UNK_tissue: ".to_string()+data_tuple.2[idx].as_str());
+                            labels_unmapped.push(data_tuple.3[idx].clone());
+                        }
+                    }
+                },
+                None=>
+                {
+                    peptides_unmapped.push(data_tuple.0[idx].clone());
+                    pseudo_seq_unmapped.push("UNK_allele: ".to_string()+data_tuple.1[idx].as_str());
+                    tissue_unmapped.push(data_tuple.2[idx].clone());
+                    labels_unmapped.push(data_tuple.3[idx].clone());
+                }
+            }
+        }
+    }
+    // encode the results 
+    //-------------------
+    let encoded_peptide_seq=encode_sequence_rs(peptides,max_len); 
+    let encoded_pseudo_seq=encode_sequence_rs(pseudo_seq,34);
+    let encoded_gene_expression=Array::from_shape_vec((gene_expression.len(),1),gene_expression).unwrap();
+    let encoded_labels=Array::from_shape_vec((labels.len(),1),labels).unwrap(); 
+
+    // Return the results 
+    //-------------------
+    (
+        (encoded_peptide_seq, encoded_pseudo_seq, encoded_gene_expression, encoded_labels),// define the training dataset 
+        (peptides_unmapped, pseudo_seq_unmapped, tissue_unmapped, labels_unmapped)// define the test data sets
+    )
+}
+
+
+
+
+
+fn preparation_prelude(input2prepare:&(Vec<String>,Vec<String>,Vec<String>),
+proteome:&HashMap<String,String>, path2cashed_db:String, 
+path2pseudo_seq:String, max_len:usize,
+threshold:f32, fold_neg:u32, test_size:f32)->(
+    (Vec<String>/* peptide */,Vec<String>/* allele name */,Vec<String>/* tissue name */,Vec<u8> /* label*/),
+    (Vec<String>/* peptide */,Vec<String>/* allele name */,Vec<String>/* tissue name */,Vec<u8> /* label*/), 
+    HashMap<String,String> /*Pseudo sequences map*/,
+    HashMap<String, HashMap<String, ProteinInfo>>/* annotation table */
+)
+{
+
     // Load the cashed database 
     let database=read_cashed_db(&Path::new(&path2cashed_db)); 
     // load the pseudo_sequences database
@@ -36,11 +152,16 @@ pub fn generate_train_based_on_seq_exp<'py>(py:Python<'py>,
     
     // group the data by alleles & tissue
     //-----------------------------------
-    let positives_grouped=group_by_allele_and_tissue(&input2prepare); 
+    let positives_grouped_by_allele=group_by_allele_and_tissue(&input2prepare); 
     
-    // loop over all examples and compute the positive and negative examples 
-    //-----------------------------------------------------------------------
+    // prepare the test and the training data 
+    //---------------------------------------
 
+    let (train_data, test_data)=sample_negatives_from_positive_data_structure(
+        positives_grouped_by_allele, &target_proteomes_per_tissue,fold_neg,test_size,&proteome); 
+
+    (train_data,test_data,pseudo_seq_map,database)
+    
 }
 
 
@@ -66,7 +187,7 @@ fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<String
                     
                     // group by the 9 mers cores
                     //-----------------------------------------------------
-                    let grouped_by_peptides=group_by_9mers(peptides).unwrap();
+                    let grouped_by_peptides=group_by_9mers(peptides.clone()).unwrap();
                     let peptide_mers=grouped_by_peptides
                         .keys()
                         .map(|mers_core|mers_core.to_string())
@@ -101,20 +222,20 @@ fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<String
                     // prepare the train dataset
                     //--------------------------
                     // 1. positive peptides 
-                    let positive_train_pep=train_index
+                    let mut positive_train_pep=train_index
                         .into_iter()
                         .map(|index|grouped_by_peptides.get(&peptide_mers[index]).unwrap())
                         .flatten()
                         .map(|pep|pep.clone().to_owned())
                         .collect::<Vec<_>>();
-                    let positive_train_label=vec![1;positive_train_pep.len()]; 
+                    let mut positive_train_label=vec![1;positive_train_pep.len()]; 
                     
                     // 2. negative peptides
-                    let sampled_negatives_train_pep=(0..positive_train_pep.len()*test_size as usize)
+                    let mut sampled_negatives_train_pep=(0..positive_train_pep.len()*test_size as usize)
                         .into_iter()
                         .map(|_|sample_a_negative_peptide(&peptides,&target_protein_seq))
                         .collect::<Vec<String>>();
-                    let sampled_negatives_train_label=vec![0;sampled_negatives_train_pep.len()]; 
+                    let mut sampled_negatives_train_label=vec![0;sampled_negatives_train_pep.len()]; 
                     
                     // 3. combine the results into a two vectors from sequences and labels
                     let mut train_seq=Vec::with_capacity(positive_train_pep.len()+sampled_negatives_train_pep.len()); 
@@ -128,20 +249,20 @@ fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<String
                     // prepare the test dataset
                     //--------------------------
                     // 1. positive peptides 
-                    let positive_test_pep=test_index
+                    let mut positive_test_pep=test_index
                         .into_iter()
                         .map(|index|grouped_by_peptides.get(&peptide_mers[index]).unwrap())
                         .flatten()
                         .map(|pep|pep.clone().to_owned())
                         .collect::<Vec<_>>();
-                    let positive_test_label=vec![1;positive_test_pep.len()]; 
+                    let mut positive_test_label=vec![1;positive_test_pep.len()]; 
                     
                     // 2. negative peptides
-                    let sampled_negatives_test_pep=(0..positive_test_pep.len()*test_size as usize)
+                    let mut sampled_negatives_test_pep=(0..positive_test_pep.len()*test_size as usize)
                         .into_iter()
                         .map(|_|sample_a_negative_peptide(&peptides,&target_protein_seq))
                         .collect::<Vec<String>>();
-                    let sampled_negatives_test_label=vec![0;sampled_negatives_test_pep.len()]; 
+                    let mut sampled_negatives_test_label=vec![0;sampled_negatives_test_pep.len()]; 
                     
                     // 3. combine the results into a two vectors from sequences and labels
                     let mut test_seq=Vec::with_capacity(positive_test_pep.len()+sampled_negatives_test_pep.len()); 
@@ -190,7 +311,7 @@ fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<String
         // 3. un-roll the data into vectors
         for (allele_name,allele_data) in  results
         {
-            for (tissue_name, (train_data, test_data)) in allele_data
+            for (tissue_name, (mut train_data, mut test_data)) in allele_data
             {
                 // Prepare the training data
                 //-------------------------- 
@@ -213,10 +334,9 @@ fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<String
             (train_peptide,train_allele_name,train_tissue_name,train_label),
             (test_peptide,test_allele_name,test_tissue_name,test_label)
         )
-        // s
+        // Copy allele information 
+        //------------------------
 }
-
-
 
 #[inline(always)]
 fn group_by_allele_and_tissue(input2prepare:&(Vec<String>,Vec<String>,Vec<String>),)->HashMap<String,HashMap<String,Vec<String>>>
@@ -334,89 +454,6 @@ fn create_negative_database_from_positive(proteome:&HashMap<String,String>,
                     })
                 .collect::<HashMap<_,_>>()
 } 
-
-
-/* 
-
-#[inline(always)]
-fn dev_function_annotation()
-{
-    // Group the cashed database 
-    //--------------------------
-    // Compute the size of the test dataset 
-    //-------------------------------------
-    let num_dp=input2prepare.0.len();
-    let num_test_dp=(num_dp as f32 *test_size) as usize; 
-
-    // Group the peptides by the 9 mers core
-    //--------------------------------------
-    let grouped_by_9mers_core=group_by_9mers_rs(&input2prepare.0)
-                    .into_iter()
-                    .collect::<Vec<_>>();
-    
-    // Sample the test size 
-    //---------------------
-    let mut rng=rand::thread_rng(); 
-    let test_peptides_index=grouped_by_9mers_core
-                        .choose_multiple(&mut rng,num_test_dp)
-                        .map(|(_,peptides_from_core)|peptides_from_core.clone())
-                        .flatten()
-                        .collect::<Vec<String>>()
-                        .into_par_iter()
-                        .map(|pep| input2prepare.0.iter()
-                                            .enumerate()
-                                            .filter(|(_,peptides_elem)| &&pep==peptides_elem)
-                                            .map(|(idx,_)| idx) 
-                                            .collect::<Vec<_>>()
-                                        )
-                        .flatten()
-                        .collect::<Vec<usize>>()
-                        .iter()
-                        .map(|elem|elem.clone())
-                        .collect::<HashSet<usize>>()
-                        .iter()
-                        .map(|elem|elem.clone())
-                        .collect::<Vec<usize>>();
-    // Extract the index of the binding and non-binding peptides 
-    //----------------------------------------------------------
-    let (mut test_alleles,mut test_peptides,mut test_tissue_name)=(Vec::with_capacity(num_test_dp),
-                                    Vec::with_capacity(num_test_dp),Vec::with_capacity(num_test_dp));
-    // loop over all elements
-    //-----------------------
-    for elem in test_peptides_index.iter()
-    {
-        test_peptides.push(input2prepare.0[*elem].to_string());
-        test_alleles.push(input2prepare.1[*elem].to_string()); 
-        test_tissue_name.push(input2prepare.2[*elem]);
-    }
-    
-    // Allocate the training array
-    //--------------------------------------------------
-    let (mut train_alleles,mut train_peptides,mut train_tissue_name)=(Vec::with_capacity(num_dp),
-                                    Vec::with_capacity(num_dp),Vec::with_capacity(num_dp));
-
-    // Filling the array using the computed data
-    //----------------------------------------
-    for elem in 0..num_dp
-    {
-        if !test_peptides_index.contains(&elem)
-        {
-            train_peptides.push(input2prepare.0[elem].to_string());
-            train_alleles.push(input2prepare.1[elem].to_string()); 
-            train_tissue_name.push(input2prepare.2[elem]);
-        }
-    }
-}
-
-#[inline(always)]
-pub fn annotate_seq_exp(peptide_seq:&String, allele_name:&String, tissue_name:&String,
-            pseudo_seq:&HashMap<String,String>,anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(String,String,f32)
-{
-
-}
-
-
-
 
 
 pub fn generate_train_based_on_seq_exp_subcell<'py>(py:Python<'py>,
