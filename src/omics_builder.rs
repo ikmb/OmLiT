@@ -119,7 +119,7 @@ pub fn prepare_data_for_seq_and_expression_data(data_tuple:(Vec<String>/* Peptid
 ///     4. encoded subcellular locations --> an array of shape (num_mapped_peptides, 1049) and a type of u8 representing the encoded protein array
 ///     4. encoded labels --> an array of shape (num_mapped_peptides,1) and a type of float u8 representing the label of the peptide, where 1 represent binders, 0 represents non-binders
 ///  the second tuple, contain non-mapped peptides and has the same structure as the input tuple, i.e. data_tuple
-fn prepare_data_for_seq_exp_and_subcellular_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
+pub fn prepare_data_for_seq_exp_and_subcellular_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
     pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
     proteome:&HashMap<String,String>,
     anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
@@ -187,7 +187,7 @@ fn prepare_data_for_seq_exp_and_subcellular_data(data_tuple:(Vec<String>/* Pepti
     //-------------------
     let num_dp=subcellular_locations.len();
     let mut subCellLocation_encoded_results=Vec::with_capacity(num_dp*1049); 
-    for vec_code in subcellular_locations
+    for mut vec_code in subcellular_locations
     {
         subCellLocation_encoded_results.append(&mut vec_code)
     }
@@ -226,7 +226,7 @@ fn prepare_data_for_seq_exp_and_subcellular_data(data_tuple:(Vec<String>/* Pepti
 ///     4. encoded context vectors  --> an array of shape (num_mapped_peptides, num_genes_in_anno_table) and a type of f32 representing the expression of all genes in a specific cell or tissue 
 ///     5. encoded labels --> an array of shape (num_mapped_peptides,1) and a type of float u8 representing the labels of the peptide, where 1 represent binders, 0 represents non-binders
 ///  the second tuple, contain non-mapped peptides and has the same structure as the input tuple, i.e. data_tuple
-fn prepare_data_for_seq_sub_cell_location_and_context_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
+pub fn prepare_data_for_seq_sub_cell_location_and_context_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
     pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
     proteome:&HashMap<String,String>,
     anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
@@ -296,7 +296,7 @@ fn prepare_data_for_seq_sub_cell_location_and_context_data(data_tuple:(Vec<Strin
     //---------------------------------
     // First annotate subcellular location 
     let mut subcellular_location_flatten=Vec::with_capacity(subcellular_locations.len()*1049);
-    for vec in  subcellular_locations
+    for mut vec in  subcellular_locations
     {
         subcellular_location_flatten.append(&mut vec); 
     }
@@ -305,14 +305,14 @@ fn prepare_data_for_seq_sub_cell_location_and_context_data(data_tuple:(Vec<Strin
     let num_rows=context_vectors.len();
     let num_dp=context_vectors.iter().map(|vec|vec.len()).sum::<usize>(); 
     let mut context_vector_flatten=Vec::with_capacity(num_dp);
-    for vec in  context_vectors
+    for mut vec in  context_vectors
     {
         context_vector_flatten.append(&mut vec); 
     }
     // encode the results 
     let encoded_peptide_seq=encode_sequence_rs(peptides,max_len); 
     let encoded_pseudo_seq=encode_sequence_rs(pseudo_seq,34);
-    let encoded_subcellular_location=Array::from_shape_vec((pseudo_seq.len(),1049),subcellular_location_flatten).unwrap();
+    let encoded_subcellular_location=Array::from_shape_vec((num_rows,1049),subcellular_location_flatten).unwrap();
     let encoded_context_vectors=Array::from_shape_vec((num_rows,(num_dp/num_rows) as usize),context_vector_flatten).unwrap();
     let encoded_labels=Array::from_shape_vec((labels.len(),1),labels).unwrap(); 
 
@@ -345,14 +345,14 @@ fn prepare_data_for_seq_sub_cell_location_and_context_data(data_tuple:(Vec<Strin
 ///     5. encoded context vectors  --> an array of shape (num_mapped_peptides, num_genes_in_anno_table) and a type of f32 representing the expression of all genes in a specific cell or tissue 
 ///     6. encoded labels --> an array of shape (num_mapped_peptides,1) and a type of float u8 representing the labels of the peptide, where 1 represent binders, 0 represents non-binders
 /// 
-fn prepare_data_for_seq_exp_subcellular_and_context_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
+pub fn prepare_data_for_seq_exp_subcellular_and_context_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
     pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
     proteome:&HashMap<String,String>,
     anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
         /* the encoded data arrays, all have the same zero axis.*/
         (Array<u8,Ix2>/* Encode peptide sequences */,Array<u8,Ix2>/* Encode pseudo-sequences*/,
         Array<f32,Ix2>/* Encode gene expression*/,Array<u8,Ix2> /* Encode the subcellular locations*/,
-        Array<u8,Ix2> /*Encode context vectors*/,Array<u8,Ix2>/* Encoded labels*/)/* The encoded results from the array */, 
+        Array<f32,Ix2> /*Encode context vectors*/,Array<u8,Ix2>/* Encoded labels*/)/* The encoded results from the array */, 
         
         (Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/)
         /* The unmapped input */
@@ -416,7 +416,7 @@ fn prepare_data_for_seq_exp_subcellular_and_context_data(data_tuple:(Vec<String>
     //---------------------------------
     // First annotate subcellular location 
     let mut subcellular_location_flatten=Vec::with_capacity(subcellular_locations.len()*1049);
-    for vec in  subcellular_locations
+    for mut vec in  subcellular_locations
     {
         subcellular_location_flatten.append(&mut vec); 
     }
@@ -425,7 +425,7 @@ fn prepare_data_for_seq_exp_subcellular_and_context_data(data_tuple:(Vec<String>
     let num_rows=context_vectors.len();
     let num_dp=context_vectors.iter().map(|vec|vec.len()).sum::<usize>(); 
     let mut context_vector_flatten=Vec::with_capacity(num_dp);
-    for vec in  context_vectors
+    for mut vec in  context_vectors
     {
         context_vector_flatten.append(&mut vec); 
     }
@@ -435,7 +435,7 @@ fn prepare_data_for_seq_exp_subcellular_and_context_data(data_tuple:(Vec<String>
     let encoded_peptide_seq=encode_sequence_rs(peptides,max_len); 
     let encoded_pseudo_seq=encode_sequence_rs(pseudo_seq,34);
     let encoded_gene_expression=Array::from_shape_vec((gene_expression.len(),1),gene_expression).unwrap();
-    let encoded_subcellular_location=Array::from_shape_vec((pseudo_seq.len(),1049),subcellular_location_flatten).unwrap();
+    let encoded_subcellular_location=Array::from_shape_vec((num_rows,1049),subcellular_location_flatten).unwrap();
     let encoded_context_vectors=Array::from_shape_vec((num_rows,(num_dp/num_rows) as usize),context_vector_flatten).unwrap();
     let encoded_labels=Array::from_shape_vec((labels.len(),1),labels).unwrap(); 
 
@@ -467,7 +467,7 @@ fn prepare_data_for_seq_exp_subcellular_and_context_data(data_tuple:(Vec<String>
 ///     4. encoded subcellular locations --> an array of shape (num_mapped_peptides, 1049) and a type of u8 representing the encoded protein array
 ///     5. encoded context vectors  --> an array of shape (num_mapped_peptides, num_genes_in_anno_table) and a type of f32 representing the expression of all genes in a specific cell or tissue 
 ///     6. encoded labels --> an array of shape (num_mapped_peptides,1) and a type of float u8 representing the labels of the peptide, where 1 represent binders, 0 represents non-binders
-fn prepare_data_for_seq_exp_subcellular_context_d2g_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
+pub fn prepare_data_for_seq_exp_subcellular_context_d2g_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
     pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
     proteome:&HashMap<String,String>,
     anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
@@ -541,7 +541,7 @@ fn prepare_data_for_seq_exp_subcellular_context_d2g_data(data_tuple:(Vec<String>
     //---------------------------------
     // First annotate subcellular location 
     let mut subcellular_location_flatten=Vec::with_capacity(subcellular_locations.len()*1049);
-    for vec in  subcellular_locations
+    for mut vec in  subcellular_locations
     {
         subcellular_location_flatten.append(&mut vec); 
     }
@@ -550,7 +550,7 @@ fn prepare_data_for_seq_exp_subcellular_context_d2g_data(data_tuple:(Vec<String>
     let num_rows=context_vectors.len();
     let num_dp=context_vectors.iter().map(|vec|vec.len()).sum::<usize>(); 
     let mut context_vector_flatten=Vec::with_capacity(num_dp);
-    for vec in  context_vectors
+    for mut vec in  context_vectors
     {
         context_vector_flatten.append(&mut vec); 
     }
@@ -559,7 +559,7 @@ fn prepare_data_for_seq_exp_subcellular_context_d2g_data(data_tuple:(Vec<String>
     let encoded_peptide_seq=encode_sequence_rs(peptides,max_len); 
     let encoded_pseudo_seq=encode_sequence_rs(pseudo_seq,34);
     let encoded_gene_expression=Array::from_shape_vec((gene_expression.len(),1),gene_expression).unwrap();
-    let encoded_subcellular_location=Array::from_shape_vec((pseudo_seq.len(),1049),subcellular_location_flatten).unwrap();
+    let encoded_subcellular_location=Array::from_shape_vec((num_rows,1049),subcellular_location_flatten).unwrap();
     let encoded_context_vectors=Array::from_shape_vec((num_rows,(num_dp/num_rows) as usize),context_vector_flatten).unwrap();
     let encoded_distance_to_glyco=Array::from_shape_vec((d2g.len(),1), d2g).unwrap();
     let encoded_labels=Array::from_shape_vec((labels.len(),1),labels).unwrap(); 
