@@ -1,9 +1,9 @@
-use std::{collections::{HashMap, HashSet}, path::Path};
+use std::{collections::{HashMap, HashSet}, path::Path, cmp::Ordering};
 use csv; 
 use rand::prelude::IteratorRandom;
 use rayon::prelude::*;
 
-use crate::{group_by_9mers, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db}; 
+use crate::{group_by_9mers, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db, constants::UNIQUE_GO_TERMS}; 
 /// ### Summary 
 /// A reader function for reading HLA pseudo sequences
 /// ### Parameters 
@@ -413,4 +413,100 @@ fn group_by_allele_and_tissue(input2prepare:&(Vec<String>,Vec<String>,Vec<String
                 (allele_name.clone(),peptides_per_tissue)
             })
         .collect::<HashMap<_,_>>()
+}
+
+/// ### Summary
+/// The function *ENCODES* the sub-cellular location into a multi-hot vector with shape of (1049,) and type of u8, 
+/// each element represents whether the protein is observed into this location of not, 1 if it observed and zero otherwise 
+/// ### Parameters
+/// go_terms: a string representing all concatenated located_in GO term associated with the input protein  
+/// ### Returns
+/// a vector of shape (1049,) and type of u8, 
+/// each element represents whether the protein is observed into this location of not, 1 if it observed and zero otherwise 
+#[inline(always)]
+pub fn get_sub_cellular_location(go_terms:&String)->Vec<u8>
+{
+    let terms=go_terms.split(";")
+            .map(|elem| UNIQUE_GO_TERMS.iter().position(|unique_term|&elem==unique_term).unwrap_or(1048))
+            .collect::<Vec<_>>(); 
+    let mut results_vec=vec![0;1049];
+    for term in terms
+    {
+        results_vec[term]=1
+    }
+    results_vec
+}
+
+/// ### Summary
+/// Takes an annotation table as an input and return a hash-map containing tissue names as keys and context vectors as values
+/// ### Parameters 
+/// The annotation table, see annotation map for more details 
+/// ### Return 
+/// A hashmap representing the context vector of each gene in the cell, tissue name is represented as strings while the expression values is encoded as values
+/// 
+fn create_context_map(annoTable:&HashMap<String, HashMap<String, ProteinInfo>>)->HashMap<String,Vec<f32>>
+{ 
+    annoTable
+        .par_iter()
+        .map(|(tissue_name,tissue_info)|
+        {
+            // Create a vector of tuples linking transcript name with transcript expression value
+            let mut txp_exp=tissue_info
+                        .iter()
+                        .map(|(txp_name,protein_info)|(txp_name.clone(),protein_info.get_expression()))
+                        .collect::<Vec<(String,f32)>>();
+            txp_exp.sort_by(|(txp_1,exp_1),(txp_2,exp_2)|exp_1.partial_cmp(exp_2).unwrap_or(Ordering::Equal));
+            
+            // Create the context vector  
+            let context_vector=txp_exp.into_iter().map(|(txp,exp)|exp).collect::<Vec<f32>>(); 
+
+            (tissue_name.to_string(),context_vector)
+        })
+        .collect::<HashMap<_,_>>()
+}
+
+/// ### Summary
+/// A helper function used for computing the distance to the nearest glycosylation site  
+/// ### Parameter 
+///     peptide_seq: The peptide sequence where the distance to glycosylation is to be computed 
+///     protein_seq: The sequence of the parent protein 
+///     glyco_site: a string representing the all glycosylation sites concatenated by a semi-colon, e.g. ; 
+/// ### Return
+/// distance to glycosylation: the distance to the nearest glycosylation sites. 
+#[inline(always)]
+fn compute_nearest_distance_to_glycosylation(peptide_seq:&String, protein_seq:&String, glyco_site:&String)->u32
+{
+    // First let's handle the case where the protein do not have a glycosylation sites, this will be encoded as a number equal to the protein length 
+    // in this case, we return protein sequence and end executions 
+    let glyco_sites=glyco_site.split(";").map(|elem|elem.parse::<i32>().unwrap()).collect::<Vec<_>>();
+    if glyco_sites.len()==1 && glyco_sites[0] as usize == protein_seq.len()
+    {
+        return glyco_sites[0] as u32;
+    }
+    // otherwise we will have to compute the nearest glycosylation site. 
+    // compute the distance to glycosylation 
+    //--------------------------------------
+    let positions = protein_seq.match_indices(peptide_seq).map(|(index,_)|index as i32).collect::<Vec<_>>();
+    // compute the distance between all possible pair, i.e. all the locations where the peptide is allocated and all glycosylation site are known
+    //-----------------------------------------------------------------------------------------
+    positions
+        .iter()
+        .map(|position|
+            {
+                glyco_sites
+                .iter()
+                .map(|site|
+                    {
+                        match (*position..*position+peptide_seq.len() as i32).contains(site)
+                        {
+                            true=>0,
+                            false=>(*site - *position).abs() as u32,
+                        }
+                    })
+                .collect::<Vec<_>>()
+            })
+            .flatten()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .min().unwrap()
 }
