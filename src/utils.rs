@@ -444,7 +444,7 @@ pub fn get_sub_cellular_location(go_terms:&String)->Vec<u8>
 /// ### Return 
 /// A hashmap representing the context vector of each gene in the cell, tissue name is represented as strings while the expression values is encoded as values
 /// 
-fn create_context_map(annoTable:&HashMap<String, HashMap<String, ProteinInfo>>)->HashMap<String,Vec<f32>>
+pub fn create_context_map(annoTable:&HashMap<String, HashMap<String, ProteinInfo>>)->HashMap<String,Vec<f32>>
 { 
     annoTable
         .par_iter()
@@ -474,7 +474,7 @@ fn create_context_map(annoTable:&HashMap<String, HashMap<String, ProteinInfo>>)-
 /// ### Return
 /// distance to glycosylation: the distance to the nearest glycosylation sites. 
 #[inline(always)]
-fn compute_nearest_distance_to_glycosylation(peptide_seq:&String, protein_seq:&String, glyco_site:&String)->u32
+pub fn compute_nearest_distance_to_glycosylation(peptide_seq:&String, protein_seq:&String, glyco_site:&String)->u32
 {
     // First let's handle the case where the protein do not have a glycosylation sites, this will be encoded as a number equal to the protein length 
     // in this case, we return protein sequence and end executions 

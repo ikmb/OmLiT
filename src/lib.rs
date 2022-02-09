@@ -22,6 +22,7 @@ pub mod geneExpressionIO;
 pub mod train_mo_model; 
 pub mod utils;
 pub mod constants;
+pub mod omics_builder; 
 
 /// ### Signature
 /// annotate_proteins(path:str,target_protein:List[str],tissue_name:str)->List[Tuple[str,str,str,float32]]
