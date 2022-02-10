@@ -1,9 +1,35 @@
+/// *** Module Prelude ***
+/// ---------------------- 
+/// Brief: A module that contain a python binder to the Rust-sided code
+/// Author: Hesham ElAbd 
+/// Contact: h.elabd@ikmb.uni-kiel.de
+/// Copyrights: Institute of clinical molecular biology, Kiel, Germany.
+/// Version: 0.1.0 pre-alpha
+/// Release data: 10.02.2022
+/// Initial Release date: 10.02.2022
+/// Rust Code: The functions in this module provide a thin wrapper a round the rust code which is used for executing all the heavy-lifting jobs.
+///         To skip the current module and work the Rust-code directly or extend the rust code, check the omics_builder code.
+/// Bug Reporting and tracking: 
+///         incase of any bugs, contact the developer using the contact information defined above or open an issue at the github page (https://github.com/ikmb/O-Link-).
+/// Change Track:
+///     No update to the 0.1.0 pre-alpha version has been documented
+/// NOTE:
+///     THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+///     INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+///     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+///     
+///     CHECK THE LICENSE FOR MORE DETAILS  
+///-----------------------------------------------
+
+/// Load the libraries 
 use std::collections::HashMap;
 use ndarray::Dim;
 use numpy::{PyArray, ToPyArray};
 use pyo3::Python;
 use crate::{utils::*, omics_builder::*};
 
+/// declare and implement the functions 
+///------------------------------------
 /// ### Signature
 /// generate_train_based_on_seq_exp(input2prepare:Tuple[List[str], List[str], List[str]], 
 ///             protoem:Dict[str,str], path2cashed_database:str,
@@ -457,4 +483,3 @@ pub fn generate_train_based_on_seq_exp_subcell_loc_context_d2g<'py>(py:Python<'p
         unmapped_test_data
     )
 }
-
