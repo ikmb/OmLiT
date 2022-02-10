@@ -512,3 +512,25 @@ pub fn compute_nearest_distance_to_glycosylation(peptide_seq:&String, protein_se
             .into_iter()
             .min().unwrap()
 }
+
+/// ### Summary
+/// Parse the input allele name and return a copy that is compatible with the pseudo-sequences table 
+/// ### Parameters 
+/// name: A string representing the input allele name
+/// ### Return 
+/// corrected allele names 
+#[inline(always)]
+pub fn parse_allele_names(name:String)->String
+{
+    match name.contains("DRB")
+    {
+        true =>
+        {
+            name.split("").collect::<Vec<_>>()[1].replace("", "").replace("*", "_").to_string()
+        },
+        false =>
+        {
+            "HLA-".to_owned() + &name.replace("*","").replace(":","")
+        }
+    }
+}

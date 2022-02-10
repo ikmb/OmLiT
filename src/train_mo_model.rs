@@ -22,6 +22,7 @@
 ///-----------------------------------------------
 
 /// Load the libraries 
+use pyo3::prelude::*; 
 use std::collections::HashMap;
 use ndarray::Dim;
 use numpy::{PyArray, ToPyArray};
@@ -97,6 +98,7 @@ use crate::{utils::*, omics_builder::*};
 ///         b. A Vector of strings representing the allele names. 
 ///         c. A Vector of strings representing the tissue names. 
 ///         d. A Vector of strings representing the peptide labels. 
+#[pyfunction]
 pub fn generate_train_based_on_seq_exp<'py>(py:Python<'py>,
         input2prepare:(Vec<String>,Vec<String>,Vec<String>),
                     proteome:HashMap<String,String>, path2cashed_db:String, 
@@ -207,6 +209,7 @@ pub fn generate_train_based_on_seq_exp<'py>(py:Python<'py>,
 ///         b. A Vector of strings representing the allele names. 
 ///         c. A Vector of strings representing the tissue names. 
 ///         d. A Vector of strings representing the peptide labels. 
+#[pyfunction]
 pub fn generate_train_based_on_seq_exp_subcell<'py>(py:Python<'py>,
 input2prepare:(Vec<String>,Vec<String>,Vec<String>),
             proteome:HashMap<String,String>, path2cashed_db:String, 
@@ -319,7 +322,8 @@ input2prepare:(Vec<String>,Vec<String>,Vec<String>),
 ///         a. A Vector of strings representing the input peptide sequence. 
 ///         b. A Vector of strings representing the allele names. 
 ///         c. A Vector of strings representing the tissue names. 
-///         d. A Vector of strings representing the peptide labels. 
+///         d. A Vector of strings representing the peptide labels.
+#[pyfunction] 
 pub fn generate_train_based_on_seq_exp_subcell_context<'py>(py:Python<'py>,
         input2prepare:(Vec<String>,Vec<String>,Vec<String>),
         proteome:HashMap<String,String>, path2cashed_db:String, 
@@ -438,6 +442,7 @@ pub fn generate_train_based_on_seq_exp_subcell_context<'py>(py:Python<'py>,
 ///         b. A Vector of strings representing the allele names. 
 ///         c. A Vector of strings representing the tissue names. 
 ///         d. A Vector of strings representing the peptide labels. 
+#[pyfunction]
 pub fn generate_train_based_on_seq_exp_subcell_loc_context_d2g<'py>(py:Python<'py>,
             input2prepare:(Vec<String>,Vec<String>,Vec<String>),
             proteome:HashMap<String,String>, path2cashed_db:String, 
