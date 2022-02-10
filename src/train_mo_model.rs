@@ -4,6 +4,73 @@ use numpy::{PyArray, ToPyArray};
 use pyo3::Python;
 use crate::{utils::*, omics_builder::*};
 
+/// ### Signature
+/// generate_train_based_on_seq_exp(input2prepare:Tuple[List[str], List[str], List[str]], 
+///             protoem:Dict[str,str], path2cashed_database:str,
+///             pseudo_sequence:str, max_len:int, threshold:float, 
+///             fold_neg:int, test_size:float)->Tuple[
+///             Tuple[np.ndarray[shape=(Num_mapped_peptides,max_len),type=np.uint8],np.ndarray[shape=(Num_mapped_peptides,34),type=np.uint8]
+///                   np.ndarray[shape=(Num_mapped_peptides,1),type=np.float32], np.ndarray[shape=(Num_mapped_peptides,1),type=np.uint8]
+///                 ],
+///             Tuple[Tuple[np.ndarray[shape=(Num_mapped_peptides,max_len),type=np.uint8],np.ndarray[shape=(Num_mapped_peptides,34),type=np.uint8]
+///                   np.ndarray[shape=(Num_mapped_peptides,1),type=np.float32], np.ndarray[shape=(Num_mapped_peptides,1),type=np.uint8]
+///                 ],
+///             Tuple[List[str],List[str],List[str],List[str]],
+///             Tuple[List[str],List[str],List[str],List[str]] 
+///     ]
+/// 
+/// ### Summary
+/// A python binder to the omics_builder module written in Rust, enabling efficient and parallel processing and preparation of the input data. 
+/// 
+/// ### Parameters  
+/// input2prepare (Tuple[List[str], List[str], List[str]]): A tuple representing the main inputs to the code, this tuple is composite of three elements 
+///     1. a list of strings representing input peptides 
+///     2. a list of strings representing allele names
+///     3. a list of strings representing the name of tissues from which the peptide was observed.
+/// NOTE: all inputs must have the same length, otherwise Rust code will panic. 
+/// 
+/// protoem (Dict[str,str]): A dict representing the input to the function which is composite of protein name (uniprot-id) and its sequence.  
+/// 
+/// path2cashed_database (str): The path to load the cashed database which is a precomputed and cashed data structure used for annotating input proteins. 
+///     See online documentation for more details.  
+/// 
+/// pseudo_sequence (str): The path to load the pseudo-sequences which is table containing the allele name and its pseudo-sequence.
+/// 
+/// max_len (int): The maximum length of of the peptide, longer sequences are trimmed and shorter sequences are zero-padded. 
+/// 
+/// threshold (float): A threshold used for generating the set of negative protein for each tissue, for more information about the meaning of this parameter check the
+/// online documentation, specifically, the rust function (create_negative_database_from_positive which is defined in the utils module)
+/// 
+///  fold_neg (int): The amount of negative examples to sample, Xfold the training datasets, where 1 represent a ratio of 1 negative per each positive example while 5 represents  
+///  5 negatives from each positive example.
+/// 
+/// test_size (int): The size of the test dataset, a float in the range (0,1) representing the fraction of the total amount of data 
+/// 
+/// ### Return
+/// A tuple of 4 elements each with the following composition and structure: 
+///     Tuple 1: Training tuple which is composite of 4 elements arranges as follow:
+///         a. encoded peptide sequence --> a NumPy array of shape (num_mapped_train_peptides,max_len) and a type of np.uint8 representing the encoded peptide sequences   
+///         b. encoded pseudo sequence  --> a NumPy array of shape (num_mapped_train_peptides,34) and a type of np.uint8 representing the encoded pseudo sequences   
+///         c. encoded gene expression  --> a NumPy array of shape (num_mapped_train_peptides,1) and a type of np.float32 representing the gene expression of the parent transcript.  
+///         d. encoded labels --> a NumPy of shape (num_mapped_train_peptides,1) and a type of np.uint8 representing the label of the peptide, where 1 represent binders, 0 represents non-binders
+///     
+///     Tuple 2: Testing tuples which is composite of 4 elements arranges as follow:
+///         a. encoded peptide sequence --> a NumPy array of shape (num_mapped_test_peptides,max_len) and a type of np.uint8 representing the encoded peptide sequences   
+///         b. encoded pseudo sequence  --> a NumPy array of shape (num_mapped_test_peptides,34) and a type of np.uint8 representing the encoded pseudo sequences   
+///         c. encoded gene expression  --> a NumPy array of shape (num_mapped_test_peptides,1) and a type of np.float32 representing the gene expression of the parent transcript.  
+///         d. encoded labels --> a NumPy of shape (num_mapped_test_peptides,1) and a type of np.uint8 representing the label of the peptide, where 1 represent binders, 0 represents non-binders
+///     
+///     Tuple 3: unmapped train data which is a tuple of four elements:
+///         a. A Vector of strings representing the input peptide sequence. 
+///         b. A Vector of strings representing the allele names. 
+///         c. A Vector of strings representing the tissue names. 
+///         d. A Vector of strings representing the peptide labels. 
+/// 
+///     Tuple 4: unmapped test data which is a tuple of four elements:
+///         a. A Vector of strings representing the input peptide sequence. 
+///         b. A Vector of strings representing the allele names. 
+///         c. A Vector of strings representing the tissue names. 
+///         d. A Vector of strings representing the peptide labels. 
 pub fn generate_train_based_on_seq_exp<'py>(py:Python<'py>,
         input2prepare:(Vec<String>,Vec<String>,Vec<String>),
                     proteome:HashMap<String,String>, path2cashed_db:String, 
@@ -45,7 +112,75 @@ pub fn generate_train_based_on_seq_exp<'py>(py:Python<'py>,
         unmapped_test_data
     )
 }
-
+/// ### Signature
+/// generate_train_based_on_seq_exp(input2prepare:Tuple[List[str], List[str], List[str]], 
+///             protoem:Dict[str,str], path2cashed_database:str,
+///             pseudo_sequence:str, max_len:int, threshold:float, 
+///             fold_neg:int, test_size:float)->Tuple[
+///             Tuple[np.ndarray[shape=(Num_mapped_peptides,max_len),type=np.uint8],np.ndarray[shape=(Num_mapped_peptides,34),type=np.uint8]
+///                   np.ndarray[shape=(Num_mapped_peptides,1),type=np.float32], np.ndarray[shape=(Num_mapped_peptides,1),type=np.uint8]
+///                 ],
+///             Tuple[Tuple[np.ndarray[shape=(Num_mapped_peptides,max_len),type=np.uint8],np.ndarray[shape=(Num_mapped_peptides,34),type=np.uint8]
+///                   np.ndarray[shape=(Num_mapped_peptides,1),type=np.float32], np.ndarray[shape=(Num_mapped_peptides,1),type=np.uint8]
+///                 ],
+///             Tuple[List[str],List[str],List[str],List[str]],
+///             Tuple[List[str],List[str],List[str],List[str]] 
+///     ]
+/// 
+/// ### Summary
+/// A python binder to the omics_builder module written in Rust, enabling efficient and parallel processing and preparation of the input data. 
+/// 
+/// ### Parameters  
+/// input2prepare (Tuple[List[str], List[str], List[str]]): A tuple representing the main inputs to the code, this tuple is composite of three elements 
+///     1. a list of strings representing input peptides 
+///     2. a list of strings representing allele names
+///     3. a list of strings representing the name of tissues from which the peptide was observed.
+/// NOTE: all inputs must have the same length, otherwise Rust code will panic. 
+/// 
+/// protoem (Dict[str,str]): A dict representing the input to the function which is composite of protein name (uniprot-id) and its sequence.  
+/// 
+/// path2cashed_database (str): The path to load the cashed database which is a precomputed and cashed data structure used for annotating input proteins. 
+///     See online documentation for more details.  
+/// 
+/// pseudo_sequence (str): The path to load the pseudo-sequences which is table containing the allele name and its pseudo-sequence.
+/// 
+/// max_len (int): The maximum length of of the peptide, longer sequences are trimmed and shorter sequences are zero-padded. 
+/// 
+/// threshold (float): A threshold used for generating the set of negative protein for each tissue, for more information about the meaning of this parameter check the
+/// online documentation, specifically, the rust function (create_negative_database_from_positive which is defined in the utils module)
+/// 
+///  fold_neg (int): The amount of negative examples to sample, Xfold the training datasets, where 1 represent a ratio of 1 negative per each positive example while 5 represents  
+///  5 negatives from each positive example.
+/// 
+/// test_size (int): The size of the test dataset, a float in the range (0,1) representing the fraction of the total amount of data 
+/// 
+/// ### Return
+/// A tuple of 4 elements each with the following composition and structure: 
+///     Tuple 1: Training tuple which is composite of 4 elements arranges as follow:
+///         a. encoded peptide sequence --> a NumPy array of shape (num_mapped_train_peptides,max_len) and a type of np.uint8 representing the encoded peptide sequences   
+///         b. encoded pseudo sequence  --> a NumPy array of shape (num_mapped_train_peptides,34) and a type of np.uint8 representing the encoded pseudo sequences   
+///         c. encoded gene expression  --> a NumPy array of shape (num_mapped_train_peptides,1) and a type of np.float32 representing the gene expression of the parent transcript.  
+///         d. encoded subcellular locations --> a NumPy array of shape (num_mapped_train_peptides,1049) and a type of np.uint8 representing the encoded subcellular location
+///         e. encoded labels --> a NumPy of shape (num_mapped_peptides,1) and a type of np.uint8 representing the label of the peptide, where 1 represent binders, 0 represents non-binders
+///     
+///     Tuple 2: Testing tuples which is composite of 4 elements arranges as follow:
+///         a. encoded peptide sequence --> a NumPy array of shape (num_mapped_test_peptides,max_len) and a type of np.uint8 representing the encoded peptide sequences   
+///         b. encoded pseudo sequence  --> a NumPy array of shape (num_mapped_test_peptides,34) and a type of np.uint8 representing the encoded pseudo sequences   
+///         c. encoded gene expression  --> a NumPy array of shape (num_mapped_test_peptides,1049) and a type of np.float32 representing the gene expression of the parent transcript.
+///         d. encoded subcellular locations --> a NumPy array of shape (num_mapped_test_peptides,1049) and a type of np.uint8 representing the encoded subcellular location  
+///         e. encoded labels --> a NumPy of shape (num_mapped_test_peptides,1) and a type of np.uint8 representing the label of the peptide, where 1 represent binders, 0 represents non-binders
+///     
+///     Tuple 3: unmapped train data which is a tuple of four elements:
+///         a. A Vector of strings representing the input peptide sequence. 
+///         b. A Vector of strings representing the allele names. 
+///         c. A Vector of strings representing the tissue names. 
+///         d. A Vector of strings representing the peptide labels. 
+/// 
+///     Tuple 4: unmapped test data which is a tuple of four elements:
+///         a. A Vector of strings representing the input peptide sequence. 
+///         b. A Vector of strings representing the allele names. 
+///         c. A Vector of strings representing the tissue names. 
+///         d. A Vector of strings representing the peptide labels. 
 pub fn generate_train_based_on_seq_exp_subcell<'py>(py:Python<'py>,
 input2prepare:(Vec<String>,Vec<String>,Vec<String>),
             proteome:HashMap<String,String>, path2cashed_db:String, 
@@ -88,7 +223,77 @@ input2prepare:(Vec<String>,Vec<String>,Vec<String>),
     )
 }
 
-
+/// ### Signature
+/// generate_train_based_on_seq_exp(input2prepare:Tuple[List[str], List[str], List[str]], 
+///             protoem:Dict[str,str], path2cashed_database:str,
+///             pseudo_sequence:str, max_len:int, threshold:float, 
+///             fold_neg:int, test_size:float)->Tuple[
+///             Tuple[np.ndarray[shape=(Num_mapped_peptides,max_len),type=np.uint8],np.ndarray[shape=(Num_mapped_peptides,34),type=np.uint8]
+///                   np.ndarray[shape=(Num_mapped_peptides,1),type=np.float32], np.ndarray[shape=(Num_mapped_peptides,1),type=np.uint8]
+///                 ],
+///             Tuple[Tuple[np.ndarray[shape=(Num_mapped_peptides,max_len),type=np.uint8],np.ndarray[shape=(Num_mapped_peptides,34),type=np.uint8]
+///                   np.ndarray[shape=(Num_mapped_peptides,1),type=np.float32], np.ndarray[shape=(Num_mapped_peptides,1),type=np.uint8]
+///                 ],
+///             Tuple[List[str],List[str],List[str],List[str]],
+///             Tuple[List[str],List[str],List[str],List[str]] 
+///     ]
+/// 
+/// ### Summary
+/// A python binder to the omics_builder module written in Rust, enabling efficient and parallel processing and preparation of the input data. 
+/// 
+/// ### Parameters  
+/// input2prepare (Tuple[List[str], List[str], List[str]]): A tuple representing the main inputs to the code, this tuple is composite of three elements 
+///     1. a list of strings representing input peptides 
+///     2. a list of strings representing allele names
+///     3. a list of strings representing the name of tissues from which the peptide was observed.
+/// NOTE: all inputs must have the same length, otherwise Rust code will panic. 
+/// 
+/// protoem (Dict[str,str]): A dict representing the input to the function which is composite of protein name (uniprot-id) and its sequence.  
+/// 
+/// path2cashed_database (str): The path to load the cashed database which is a precomputed and cashed data structure used for annotating input proteins. 
+///     See online documentation for more details.  
+/// 
+/// pseudo_sequence (str): The path to load the pseudo-sequences which is table containing the allele name and its pseudo-sequence.
+/// 
+/// max_len (int): The maximum length of of the peptide, longer sequences are trimmed and shorter sequences are zero-padded. 
+/// 
+/// threshold (float): A threshold used for generating the set of negative protein for each tissue, for more information about the meaning of this parameter check the
+/// online documentation, specifically, the rust function (create_negative_database_from_positive which is defined in the utils module)
+/// 
+///  fold_neg (int): The amount of negative examples to sample, Xfold the training datasets, where 1 represent a ratio of 1 negative per each positive example while 5 represents  
+///  5 negatives from each positive example.
+/// 
+/// test_size (int): The size of the test dataset, a float in the range (0,1) representing the fraction of the total amount of data 
+/// 
+/// ### Return
+/// A tuple of 4 elements each with the following composition and structure: 
+///     Tuple 1: Training tuple which is composite of 4 elements arranges as follow:
+///         a. encoded peptide sequence --> a NumPy array of shape (num_mapped_train_peptides,max_len) and a type of np.uint8 representing the encoded peptide sequences   
+///         b. encoded pseudo sequence  --> a NumPy array of shape (num_mapped_train_peptides,34) and a type of np.uint8 representing the encoded pseudo sequences   
+///         c. encoded gene expression  --> a NumPy array of shape (num_mapped_train_peptides,1) and a type of np.float32 representing the gene expression of the parent transcript.  
+///         d. encoded subcellular locations --> a NumPy array of shape (num_mapped_train_peptides,1049) and a type of np.uint8 representing the encoded subcellular location
+///         e. encoded context vectors --> a NumPy array of shape (num_mapped_train_peptides, Num_genes) and a type of np.float32 representing the encoded context vectors
+///         f. encoded labels --> a NumPy of shape (num_mapped_peptides,1) and a type of np.uint8 representing the label of the peptide, where 1 represent binders, 0 represents non-binders
+///     
+///     Tuple 2: Testing tuples which is composite of 4 elements arranges as follow:
+///         a. encoded peptide sequence --> a NumPy array of shape (num_mapped_test_peptides,max_len) and a type of np.uint8 representing the encoded peptide sequences   
+///         b. encoded pseudo sequence  --> a NumPy array of shape (num_mapped_test_peptides,34) and a type of np.uint8 representing the encoded pseudo sequences   
+///         c. encoded gene expression  --> a NumPy array of shape (num_mapped_test_peptides,1049) and a type of np.float32 representing the gene expression of the parent transcript.
+///         d. encoded subcellular locations --> a NumPy array of shape (num_mapped_test_peptides,1049) and a type of np.uint8 representing the encoded subcellular location  
+///         e. encoded context vectors --> a NumPy array of shape (num_mapped_test_peptides, Num_genes) and a type of np.float32 representing the encoded context vectors
+///         f. encoded labels --> a NumPy of shape (num_mapped_test_peptides,1) and a type of np.uint8 representing the label of the peptide, where 1 represent binders, 0 represents non-binders
+///     
+///     Tuple 3: unmapped train data which is a tuple of four elements:
+///         a. A Vector of strings representing the input peptide sequence. 
+///         b. A Vector of strings representing the allele names. 
+///         c. A Vector of strings representing the tissue names. 
+///         d. A Vector of strings representing the peptide labels. 
+/// 
+///     Tuple 4: unmapped test data which is a tuple of four elements:
+///         a. A Vector of strings representing the input peptide sequence. 
+///         b. A Vector of strings representing the allele names. 
+///         c. A Vector of strings representing the tissue names. 
+///         d. A Vector of strings representing the peptide labels. 
 pub fn generate_train_based_on_seq_exp_subcell_context<'py>(py:Python<'py>,
         input2prepare:(Vec<String>,Vec<String>,Vec<String>),
         proteome:HashMap<String,String>, path2cashed_db:String, 
@@ -133,7 +338,80 @@ pub fn generate_train_based_on_seq_exp_subcell_context<'py>(py:Python<'py>,
 
 }
 
-
+/// ### Signature
+/// generate_train_based_on_seq_exp(input2prepare:Tuple[List[str], List[str], List[str]], 
+///             protoem:Dict[str,str], path2cashed_database:str,
+///             pseudo_sequence:str, max_len:int, threshold:float, 
+///             fold_neg:int, test_size:float)->Tuple[
+///             Tuple[np.ndarray[shape=(Num_mapped_peptides,max_len),type=np.uint8],np.ndarray[shape=(Num_mapped_peptides,34),type=np.uint8]
+///                   np.ndarray[shape=(Num_mapped_peptides,1),type=np.float32], np.ndarray[shape=(Num_mapped_peptides,1),type=np.uint8]
+///                 ],
+///             Tuple[Tuple[np.ndarray[shape=(Num_mapped_peptides,max_len),type=np.uint8],np.ndarray[shape=(Num_mapped_peptides,34),type=np.uint8]
+///                   np.ndarray[shape=(Num_mapped_peptides,1),type=np.float32], np.ndarray[shape=(Num_mapped_peptides,1),type=np.uint8]
+///                 ],
+///             Tuple[List[str],List[str],List[str],List[str]],
+///             Tuple[List[str],List[str],List[str],List[str]] 
+///     ]
+/// 
+/// ### Summary
+/// A python binder to the omics_builder module written in Rust, enabling efficient and parallel processing and preparation of the input data. 
+/// 
+/// ### Parameters  
+/// input2prepare (Tuple[List[str], List[str], List[str]]): A tuple representing the main inputs to the code, this tuple is composite of three elements 
+///     1. a list of strings representing input peptides 
+///     2. a list of strings representing allele names
+///     3. a list of strings representing the name of tissues from which the peptide was observed.
+/// NOTE: all inputs must have the same length, otherwise Rust code will panic. 
+/// 
+/// protoem (Dict[str,str]): A dict representing the input to the function which is composite of protein name (uniprot-id) and its sequence.  
+/// 
+/// path2cashed_database (str): The path to load the cashed database which is a precomputed and cashed data structure used for annotating input proteins. 
+///     See online documentation for more details.  
+/// 
+/// pseudo_sequence (str): The path to load the pseudo-sequences which is table containing the allele name and its pseudo-sequence.
+/// 
+/// max_len (int): The maximum length of of the peptide, longer sequences are trimmed and shorter sequences are zero-padded. 
+/// 
+/// threshold (float): A threshold used for generating the set of negative protein for each tissue, for more information about the meaning of this parameter check the
+/// online documentation, specifically, the rust function (create_negative_database_from_positive which is defined in the utils module)
+/// 
+///  fold_neg (int): The amount of negative examples to sample, Xfold the training datasets, where 1 represent a ratio of 1 negative per each positive example while 5 represents  
+///  5 negatives from each positive example.
+/// 
+/// test_size (int): The size of the test dataset, a float in the range (0,1) representing the fraction of the total amount of data 
+/// 
+/// ### Return
+/// A tuple of 4 elements each with the following composition and structure: 
+///     Tuple 1: Training tuple which is composite of 4 elements arranges as follow:
+///         a. encoded peptide sequence --> a NumPy array of shape (num_mapped_train_peptides,max_len) and a type of np.uint8 representing the encoded peptide sequences   
+///         b. encoded pseudo sequence  --> a NumPy array of shape (num_mapped_train_peptides,34) and a type of np.uint8 representing the encoded pseudo sequences   
+///         c. encoded gene expression  --> a NumPy array of shape (num_mapped_train_peptides,1) and a type of np.float32 representing the gene expression of the parent transcript.  
+///         d. encoded subcellular locations --> a NumPy array of shape (num_mapped_train_peptides,1049) and a type of np.uint8 representing the encoded subcellular location
+///         e. encoded context vectors --> a NumPy array of shape (num_mapped_train_peptides, Num_genes) and a type of np.float32 representing the encoded context vectors
+///         f. encoded distance to glycosylation --> a NumPy array of shape (num_mapped_train_peptides, 1) and a type of np.uint32 representing the encoded distance to glycosylation
+///         g. encoded labels --> a NumPy of shape (num_mapped_peptides,1) and a type of np.uint8 representing the label of the peptide, where 1 represent binders, 0 represents non-binders
+///         
+///     
+///     Tuple 2: Testing tuples which is composite of 4 elements arranges as follow:
+///         a. encoded peptide sequence --> a NumPy array of shape (num_mapped_test_peptides,max_len) and a type of np.uint8 representing the encoded peptide sequences   
+///         b. encoded pseudo sequence  --> a NumPy array of shape (num_mapped_test_peptides,34) and a type of np.uint8 representing the encoded pseudo sequences   
+///         c. encoded gene expression  --> a NumPy array of shape (num_mapped_test_peptides,1049) and a type of np.float32 representing the gene expression of the parent transcript.
+///         d. encoded subcellular locations --> a NumPy array of shape (num_mapped_test_peptides,1049) and a type of np.uint8 representing the encoded subcellular location  
+///         e. encoded context vectors --> a NumPy array of shape (num_mapped_test_peptides, Num_genes) and a type of np.float32 representing the encoded context vectors
+///         f. encoded distance to glycosylation --> a NumPy array of shape (num_mapped_test_peptides, 1) and a type of np.uint32 representing the encoded distance to glycosylation
+///         g. encoded labels --> a NumPy of shape (num_mapped_test_peptides,1) and a type of np.uint8 representing the label of the peptide, where 1 represent binders, 0 represents non-binders
+///     
+///     Tuple 3: unmapped train data which is a tuple of four elements:
+///         a. A Vector of strings representing the input peptide sequence. 
+///         b. A Vector of strings representing the allele names. 
+///         c. A Vector of strings representing the tissue names. 
+///         d. A Vector of strings representing the peptide labels. 
+/// 
+///     Tuple 4: unmapped test data which is a tuple of four elements:
+///         a. A Vector of strings representing the input peptide sequence. 
+///         b. A Vector of strings representing the allele names. 
+///         c. A Vector of strings representing the tissue names. 
+///         d. A Vector of strings representing the peptide labels. 
 pub fn generate_train_based_on_seq_exp_subcell_loc_context_d2g<'py>(py:Python<'py>,
             input2prepare:(Vec<String>,Vec<String>,Vec<String>),
             proteome:HashMap<String,String>, path2cashed_db:String, 

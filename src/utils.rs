@@ -78,7 +78,7 @@ pub fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<St
                     let target_proteins=target_proteomes.get(&tissue_name).unwrap();
                     let target_protein_seq=proteome
                             .iter()
-                            .filter(|(name,seq)|target_proteins.contains(name))
+                            .filter(|(name,_)|target_proteins.contains(name))
                             .map(|(name,seq)|(name.clone().to_owned(),seq.clone().to_owned()))
                             .collect::<Vec<_>>();
                     
@@ -110,7 +110,7 @@ pub fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<St
                     let mut positive_train_label=vec![1;positive_train_pep.len()]; 
                     
                     // 2. negative peptides
-                    let mut sampled_negatives_train_pep=(0..positive_train_pep.len()*test_size as usize)
+                    let mut sampled_negatives_train_pep=(0..(positive_train_pep.len() as u32 * fold_neg))
                         .into_iter()
                         .map(|_|sample_a_negative_peptide(&peptides,&target_protein_seq))
                         .collect::<Vec<String>>();
@@ -137,7 +137,7 @@ pub fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<St
                     let mut positive_test_label=vec![1;positive_test_pep.len()]; 
                     
                     // 2. negative peptides
-                    let mut sampled_negatives_test_pep=(0..positive_test_pep.len()*test_size as usize)
+                    let mut sampled_negatives_test_pep=(0..(positive_test_pep.len() as u32*fold_neg))
                         .into_iter()
                         .map(|_|sample_a_negative_peptide(&peptides,&target_protein_seq))
                         .collect::<Vec<String>>();
@@ -228,6 +228,8 @@ pub fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<St
 /// anno_table: a hashmap representing the annotation table which is made of a nested hashmap with tissue names as keys and a hashmap containing protein id 
 /// and protein information as values, i.e. a representation for the proteome state in different tissues. see the AnnotationTable for further details. 
 /// threshold: A float representing the minimum gene expression level to considered a gene as expressed.    
+/// ### Returns: 
+///  A hashmap of tissue names along with a vector of protein ids which shall be used for generating the negatives. 
 fn create_negative_database_from_positive(proteome:&HashMap<String,String>, 
     input2prepare:&(Vec<String>,Vec<String>,Vec<String>), 
     anno_table:&HashMap<String, HashMap<String, ProteinInfo>>,
