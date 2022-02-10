@@ -3,7 +3,7 @@ use csv;
 use rand::prelude::IteratorRandom;
 use rayon::prelude::*;
 
-use crate::{group_by_9mers_rs, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db, constants::UNIQUE_GO_TERMS}; 
+use crate::{peptides::group_by_9mers_rs, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db, constants::UNIQUE_GO_TERMS}; 
 /// ### Summary 
 /// A reader function for reading HLA pseudo sequences
 /// ### Parameters 
