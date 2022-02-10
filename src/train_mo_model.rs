@@ -8,11 +8,11 @@
 /// Release data: 10.02.2022
 /// Initial Release date: 10.02.2022
 /// Rust Code: The functions in this module provide a thin wrapper a round the rust code which is used for executing all the heavy-lifting jobs.
-///         To skip the current module and work the Rust-code directly or extend the rust code, check the omics_builder code.
+///         To skip the current module and work with the Rust-code directly or to extend the rust code, check the code defined in the file omics_builder.rs.
 /// Bug Reporting and tracking: 
-///         incase of any bugs, contact the developer using the contact information defined above or open an issue at the github page (https://github.com/ikmb/O-Link-).
+///         incase of any bug, contact the developer using the contact information defined above or open an issue at the github page (https://github.com/ikmb/O-Link-).
 /// Change Track:
-///     No update to the 0.1.0 pre-alpha version has been documented
+///     No update to the 0.1.0 pre-alpha version has been documented.
 /// NOTE:
 ///     THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
 ///     INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
