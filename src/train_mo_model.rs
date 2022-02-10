@@ -1,26 +1,3 @@
-/// *** Module Prelude ***
-/// ---------------------- 
-/// Brief: A module that contain a python binder to the Rust-sided code
-/// Author: Hesham ElAbd 
-/// Contact: h.elabd@ikmb.uni-kiel.de
-/// Copyrights: Institute of clinical molecular biology, Kiel, Germany.
-/// Version: 0.1.0 pre-alpha
-/// Release data: 10.02.2022
-/// Initial Release date: 10.02.2022
-/// Rust Code: The functions in this module provide a thin wrapper a round the rust code which is used for executing all the heavy-lifting jobs.
-///         To skip the current module and work with the Rust-code directly or to extend the rust code, check the code defined in the file omics_builder.rs.
-/// Bug Reporting and tracking: 
-///         incase of any bug, contact the developer using the contact information defined above or open an issue at the github page (https://github.com/ikmb/O-Link-).
-/// Change Track:
-///     No update to the 0.1.0 pre-alpha version has been documented.
-/// NOTE:
-///     THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
-///     INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-///     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-///     
-///     CHECK THE LICENSE FOR MORE DETAILS  
-///-----------------------------------------------
-
 /// Load the libraries 
 use pyo3::prelude::*; 
 use std::collections::HashMap;

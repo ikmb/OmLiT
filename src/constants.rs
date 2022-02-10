@@ -1,8 +1,5 @@
 /// Define some constants that are used through the library
 /// ------------------------------------------------------
-/// 
-/// 
-/// All constants
 
 pub const UNIQUE_GO_TERMS: [&str; 1048] = [
     "GO:0000123",

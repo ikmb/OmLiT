@@ -2,11 +2,11 @@
 //---------------------------------------------------------------------------------------
 // Load the library modules 
 //-------------------------
+use pyo3::prelude::*;
 use ndarray::{Dim, Array};
 use numpy::{PyArray, ToPyArray};
-use pyo3::{pyfunction,Python};
 use rayon::iter::IntoParallelIterator;
-use crate::peptides::{group_by_9mers_rs,generate_a_train_db_by_shuffling_rs,encode_sequence_rs, group_peptides_by_parent_rs,generate_negative_by_sampling_rs};
+use crate::peptides::{group_by_9mers_rs,generate_a_train_db_by_shuffling_rs,encode_sequence_rs};
 use crate::sequence_builder::{prepare_train_ds_proteome_sampling, prepare_train_ds_same_protein_sampling, prepare_train_ds_shuffling, prepare_train_ds_expressed_protein_sampling}; 
 use rand;
 use rand::seq::SliceRandom;
@@ -152,9 +152,6 @@ pub fn generate_train_ds_proteome_sampling_sm<'py>(py:Python<'py>,
     )
 }
 
-
-
-
 /// ### Signature
 /// generate_train_ds_same_protein_sampling_sm(positive_examples:List[str],proteome:Dict[str,str],
 ///                                         fold_neg:int,max_len:int,test_size:float)->Tuple[
@@ -205,8 +202,6 @@ pub fn generate_train_ds_same_protein_sampling_sm<'py>(py:Python<'py>,
         (encoded_train_seq,encoded_train_labels)
     )
 }
-
-
 
 /// ### Signature(positive_examples:List[str],proteome:Dict[str,str],path2expression_map:str,
 ///                     tissue_name:str,threshold:float, 
@@ -516,34 +511,3 @@ pub fn generate_train_ds_Qd<'py>(py:Python<'py>,path2load_ds:String, path2pseudo
     )
 }
 
-/// ### Summary 
-/// A helper function for computing and reading the quantitative data 
-/// ------------------------------------------------------------------
-/// ### Parameter
-/// # path2file: The path to the reading files 
-/// ### Returns
-/// a tuple of three vectors, the first is the allele names, the second is peptides sequences and the third one if
-/// a vector of floats representing the allele sequence
-pub fn read_Q_table(path2file:&Path)->(Vec<String>,Vec<String>,Vec<f32>)
-{
-    // load the files to conduct the analysis
-    //---------------------------------------
-    let mut reader=csv::ReaderBuilder::new().delimiter(b'\t').from_path(path2file).unwrap(); // Read the files 
-
-    // Allocate the vectors to fill the results
-    //-----------------------------------------
-    let mut allele_names=Vec::with_capacity(131_009); 
-    let mut peptide_seq=Vec::with_capacity(131_009);
-    let mut affinity=Vec::with_capacity(131_009);
-    
-    // Fill the results 
-    //-----------------
-    for record in reader.records()
-    {
-        let row=record.unwrap(); // getting a string record from the data
-        allele_names.push(parse_allele_names(row[0].to_string())); 
-        peptide_seq.push(row[1].to_string());
-        affinity.push(row[2].parse::<f32>().unwrap())
-    }
-    (allele_names,peptide_seq,affinity)
-}

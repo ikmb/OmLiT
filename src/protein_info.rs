@@ -1,5 +1,9 @@
-/// ## summary
-/// A simple representation for datasets 
+/// *** Module Prelude ***
+/// 
+/// 
+/// 
+/// 
+/// 
 /// 
 use serde::{Serialize,Deserialize};
 
@@ -52,5 +56,4 @@ impl ProteinInfo
     {
         self.d2g
     }
-    //fn encode() ->(Vec<u8>,f32,f32)
 }

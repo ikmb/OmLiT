@@ -3,7 +3,7 @@ use csv;
 use rand::prelude::IteratorRandom;
 use rayon::prelude::*;
 
-use crate::{group_by_9mers, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db, constants::UNIQUE_GO_TERMS}; 
+use crate::{group_by_9mers_rs, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db, constants::UNIQUE_GO_TERMS}; 
 /// ### Summary 
 /// A reader function for reading HLA pseudo sequences
 /// ### Parameters 
@@ -67,7 +67,7 @@ pub fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<St
                     
                     // group by the 9 mers cores
                     //-----------------------------------------------------
-                    let grouped_by_peptides=group_by_9mers(peptides.clone()).unwrap();
+                    let grouped_by_peptides=group_by_9mers_rs(&peptides);
                     let peptide_mers=grouped_by_peptides
                         .keys()
                         .map(|mers_core|mers_core.to_string())
@@ -533,4 +533,37 @@ pub fn parse_allele_names(name:String)->String
             "HLA-".to_owned() + &name.replace("*","").replace(":","")
         }
     }
+}
+
+
+/// ### Summary 
+/// A helper function for computing and reading the quantitative data 
+/// ------------------------------------------------------------------
+/// ### Parameter
+/// # path2file: The path to the reading files 
+/// ### Returns
+/// a tuple of three vectors, the first is the allele names, the second is peptides sequences and the third one if
+/// a vector of floats representing the allele sequence
+pub fn read_Q_table(path2file:&Path)->(Vec<String>,Vec<String>,Vec<f32>)
+{
+    // load the files to conduct the analysis
+    //---------------------------------------
+    let mut reader=csv::ReaderBuilder::new().delimiter(b'\t').from_path(path2file).unwrap(); // Read the files 
+
+    // Allocate the vectors to fill the results
+    //-----------------------------------------
+    let mut allele_names=Vec::with_capacity(131_009); 
+    let mut peptide_seq=Vec::with_capacity(131_009);
+    let mut affinity=Vec::with_capacity(131_009);
+    
+    // Fill the results 
+    //-----------------
+    for record in reader.records()
+    {
+        let row=record.unwrap(); // getting a string record from the data
+        allele_names.push(parse_allele_names(row[0].to_string())); 
+        peptide_seq.push(row[1].to_string());
+        affinity.push(row[2].parse::<f32>().unwrap())
+    }
+    (allele_names,peptide_seq,affinity)
 }

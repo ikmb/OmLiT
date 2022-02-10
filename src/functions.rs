@@ -171,6 +171,7 @@ pub fn cash_database_to_disk(path2file:&Path,path2res:&Path)->()
     // serialize the results into the generated writer buffer 
     serialize_into(&mut file_writer, &database).unwrap();
 }
+
 /// ### Summary 
 /// Load the Serialized database from the disk
 /// ### Parameters
