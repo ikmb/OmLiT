@@ -48,9 +48,35 @@ The encoding is made of the following elements
 
 ## building it from the source
 
+1. clone the directory locally
 
+```bash
+git clone https://github.com/ikmb/O-Link-
+```
 
-## Usage
+2. Create a new conda environment and active it
 
+```bash
+conda create -n o_link -y && conda activate o_link
+```
 
-## Performance
+3. install maturin
+
+```bash
+pip install maturin 
+```
+
+4. build the code
+
+```bash
+cd O-Link- && maturin develop --release 
+```
+
+5. Load the library into Python and start working
+
+```python
+
+from OLink import * # load all the libraries 
+?generate_train_based_on_seq_exp_subcell # print help message about a specific functions 
+```
+
