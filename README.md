@@ -41,9 +41,9 @@ The encoding is made of the following elements
 
 1. Allocate a vector of zeros with shape of [1,1049]
 2. For location in locations:
-    i. Get the index of the target GO term in the library constant array*.
-    ii. If term is not located return the default index 1048.
-    iii. Update the the position pointed to by the index to 1.
+    1. Get the index of the target GO term in the library constant array*.
+    2. If term is not located return the default index 1048.
+    3. Update the the position pointed to by the index to 1.
 3. Return the encoded array.
 
 ## building it from the source
