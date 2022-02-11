@@ -9,10 +9,10 @@ The aim of the library is provide a state of the art preprocessing library for e
 The library support the following encoding tasks:
 
 1. Sequence only models, where the major aim is to train models using sequence only information, the library support two types of input data: quantitative data and immunopeptidomics data. Incase of quantitative data, the dataset can be used AS IS with out further editing, meanwhile, immunopeptidomics data only contain positive peptides and hence we must generate negative peptides. The library support 4 different methods to generate negative examples:
-    i. Shuffling, where the positive examples are shuffled to generate negative examples.
-    ii. Proteome-sampling, where negative examples are randomly sampled from the proteome.
-    iii. Expressed-genes sampling, where the sampling is from a specific tissues, i.e. sampling will be from the same genes where it is expressed.
-    iv. same protein, where sampling, i.e. negatives sampling, is from the same protein as the positives, tradeoff for using each method are discussed in  ElAbd et al paper (In Preparation,).
+    1. Shuffling, where the positive examples are shuffled to generate negative examples.
+    2. Proteome-sampling, where negative examples are randomly sampled from the proteome.
+    3. Expressed-genes sampling, where the sampling is from a specific tissues, i.e. sampling will be from the same genes where it is expressed.
+    4. same protein, where sampling, i.e. negatives sampling, is from the same protein as the positives, tradeoff for using each method are discussed in  ElAbd et al paper (In Preparation,).
 
 2. Multi-omics, here it means data generated from different Omics layer beside the sequence information, the following information are used
     i. expression data, where the expression level of the parent transcript for the positive and the negative peptides are included.
