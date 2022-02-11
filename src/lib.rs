@@ -23,6 +23,22 @@
 ///     To be written 
 ///-----------------------------------------------
 
+/// Exported functions
+/// ------------------
+/// The xxx library provides an interface to prepare and encode the datasets for training peptide HLA-II interaction and for running predictions on  
+/// the training datasets. The following functions are exported: 
+///     1.  generate_train_ds_shuffling_sm: which generate a training dataset made of negatives through shuffling of the positive peptides then
+///        numerically encodes it train and test dataset and then return two arrays, one representing the encoded sequences and representing the labels. 
+///         Further information can be obtained by calling the help function of the module.
+///     2.  
+///      
+///      
+/// 
+/// 
+/// 
+/// 
+/// 
+///   
 // Import the binder functions 
 //----------------------------
 use pyo3::prelude::*;
