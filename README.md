@@ -48,35 +48,49 @@ The encoding is made of the following elements
 
 ## building it from the source
 
-1. clone the directory locally
+1. install Rust on your machine from the main website or using (skip this function if you have Rust already) 
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+2. clone the directory locally
 
 ```bash
 git clone https://github.com/ikmb/O-Link-
 ```
 
-2. Create a new conda environment and active it
+3. Create a new conda environment and active it
 
 ```bash
 conda create -n o_link -y && conda activate o_link
 ```
 
-3. install maturin
+4. install maturin
 
 ```bash
 pip install maturin 
 ```
 
-4. build the code
+5. build the code
 
 ```bash
 cd O-Link- && maturin develop --release 
 ```
 
-5. Load the library into Python and start working
+6. Load the library into Python and start working
 
 ```python
 
-from OLink import * # load all the libraries 
+from OLink import * # load all the function // otherwise we can use
+import OLink as linker # e.g. to have have a clean name space
 ?generate_train_based_on_seq_exp_subcell # print help message about a specific functions 
 ```
 
+## using the library !!
+
+The python scripts defined at the test and the benchmarking directories shall be used as a good start for learning Rust.
+
+## Funding
+
+The project was funded by the German Research Foundation (DFG) (Research Training Group 1743, ‘Genes, Environment and Inflammation’)
