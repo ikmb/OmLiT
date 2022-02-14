@@ -78,11 +78,17 @@ pub fn encode_sequence_rs(input_seq:Vec<String>,max_len:usize)->Array<u8,Ix2>
 #[inline(always)]
 pub fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:&Vec<(String,String)>)->String
 {
+    let filtered_proteome=proteome_as_vec
+                                .iter()
+                                .filter(|(_,prot_seq)|prot_seq.len()>=30)
+                                .map(|(prot_name,prot_seq)| (prot_name.clone(),prot_seq.clone()))
+                                .collect::<Vec<_>>(); 
+
     let mut sampler_rng=rand::thread_rng(); // create a RNG to sample the target proteins
     let mut position_sampler=rand::thread_rng(); // create a RNG to sample the position in the protein 
     let normal = Normal::new(15.0, 3.0).unwrap(); // create a normal distribution to sample the peptide from 
     // create the target proteins 
-    let target_protein= proteome_as_vec.choose(&mut sampler_rng).unwrap(); // sample the protein
+    let target_protein= filtered_proteome.choose(&mut sampler_rng).unwrap(); // sample the protein
     let mut peptide_length= normal.sample(&mut rand::thread_rng()) as usize ; // sample the peptide length from a normal distribution 
     peptide_length=std::cmp::min(21,std::cmp::max(9,peptide_length)); // clip the peptide length to be between [9,21]
     let position_in_backbone=position_sampler.gen_range(0..target_protein.1.len()-(peptide_length+1)); // sample the position in the protein backbone 
@@ -90,7 +96,7 @@ pub fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:
     // check that the peptide is not in positive peptides 
     if positive_peptides.contains(&sampled_peptide) // if it is there we try again
     {
-        return sample_a_negative_peptide(positive_peptides,proteome_as_vec)
+        return sample_a_negative_peptide(positive_peptides,&filtered_proteome)
     }
     else // if not we return a sampled peptide
     {
