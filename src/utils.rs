@@ -3,7 +3,7 @@ use csv;
 use rand::prelude::IteratorRandom;
 use rayon::prelude::*;
 
-use crate::{peptides::group_by_9mers_rs, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db, constants::UNIQUE_GO_TERMS}; 
+use crate::{peptides::{group_by_9mers_rs, fragment_peptide_into_9_mers}, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db, constants::UNIQUE_GO_TERMS}; 
 /// ### Summary 
 /// A reader function for reading HLA pseudo sequences
 /// ### Parameters 
@@ -457,10 +457,10 @@ pub fn create_context_map(annoTable:&HashMap<String, HashMap<String, ProteinInfo
                         .iter()
                         .map(|(txp_name,protein_info)|(txp_name.clone(),protein_info.get_expression()))
                         .collect::<Vec<(String,f32)>>();
-            txp_exp.sort_by(|(txp_1,exp_1),(txp_2,exp_2)|exp_1.partial_cmp(exp_2).unwrap_or(Ordering::Equal));
+            txp_exp.sort_by(|(_,exp_1),(_,exp_2)|exp_1.partial_cmp(exp_2).unwrap_or(Ordering::Equal));
             
             // Create the context vector  
-            let context_vector=txp_exp.into_iter().map(|(txp,exp)|exp).collect::<Vec<f32>>(); 
+            let context_vector=txp_exp.into_iter().map(|(_,exp)|exp).collect::<Vec<f32>>(); 
 
             (tissue_name.to_string(),context_vector)
         })
@@ -567,3 +567,58 @@ pub fn read_Q_table(path2file:&Path)->(Vec<String>,Vec<String>,Vec<f32>)
     }
     (allele_names,peptide_seq,affinity)
 }
+
+/// ### Summary 
+/// A convenient function for generating train and test dataset from the list of input positive examples.
+/// ### Parameters:
+/// positive_examples: List of string representing positive peptides 
+/// test_size: The size of the test dataset, a float in the range (0,1). 
+/// ### Returns 
+/// A tuple of two vectors of strings, the first is the vector of train example and the second is the vector of test examples. 
+pub fn split_positive_examples_into_test_and_train(positive_examples:&Vec<String>,test_size:f32)->(Vec<String>,Vec<String>)
+{
+    let num_test_examples=(positive_examples.len() as f32 *test_size) as usize; 
+    
+    // create a thread for splitting the dataset 
+    let mut rng=rand::thread_rng(); 
+
+    // Split the data into test and train
+    //------------------------------- 
+    let index_test=(0..positive_examples.len())
+                                    .choose_multiple(&mut rng,num_test_examples); 
+    
+    let test_seq = index_test
+                                        .iter() 
+                                        .map(|index|positive_examples[*index].clone())
+                                        .collect::<Vec<_>>();
+
+    let mut train_seq=(0..positive_examples.len())
+                        .filter(|index|!index_test.contains(index))
+                        .map(|index|positive_examples[index].clone())
+                        .collect::<Vec<_>>();
+    // Get train and test peptides
+    //----------------------------
+    // Extract the test examples that are similar to the train dataset.
+    let mut similar_to_train=test_seq
+                    .par_iter()
+                    .filter(|peptide|
+                    {
+                        for target_test_mers in fragment_peptide_into_9_mers(peptide)
+                        {
+                            for train_pep in train_seq.iter(){if train_pep.contains(&target_test_mers){return true}} 
+                        }
+                        return false
+                    })
+                    .map(|elem|elem.clone())
+                    .collect::<Vec<_>>(); 
+    // Extract the dataset from the test dataset 
+    //------------------------------------------
+    let filtered_test_seq=test_seq
+                        .into_par_iter()
+                        .filter(|peptide|!similar_to_train.contains(&peptide))
+                        .collect::<Vec<_>>(); 
+                        
+    train_seq.append(&mut similar_to_train); 
+
+    (train_seq,filtered_test_seq)
+} 
