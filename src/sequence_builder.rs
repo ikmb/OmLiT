@@ -36,7 +36,7 @@ pub fn prepare_train_ds_shuffling(positive_examples:&Vec<String>,fold_neg:u32,te
     //------------------------------- 
     let index_test=(0..positive_examples.len())
                                     .choose_multiple(&mut rng,num_test_examples); 
-    println!("The number of element in the test : {}",index_test.len()); 
+    
     let test_seq = index_test
                                         .iter() 
                                         .map(|index|positive_examples[*index].clone())
@@ -46,9 +46,6 @@ pub fn prepare_train_ds_shuffling(positive_examples:&Vec<String>,fold_neg:u32,te
                         .filter(|index|!index_test.contains(index))
                         .map(|index|positive_examples[index].clone())
                         .collect::<Vec<_>>();
-
-    println!("The number of train 9mers is: {}",test_seq.len()); 
-    println!("The number of test 9mers is: {}",train_seq.len());
     // Get train and test peptides
     //----------------------------
     // Extract the test examples that are similar to the train dataset.
@@ -71,13 +68,7 @@ pub fn prepare_train_ds_shuffling(positive_examples:&Vec<String>,fold_neg:u32,te
                         .filter(|peptide|!similar_to_train.contains(&peptide))
                         .collect::<Vec<_>>(); 
                         
-    train_seq.append(&mut similar_to_train); 
-    
-    println!("************* Final stats: "); 
-    println!("Number of positive train peptides, {}", train_seq.len());
-    println!("Number of positive test peptides, {}", filtered_test_seq.len());
-    // filter and test the train peptides
-    //----------------------------------                                            
+    train_seq.append(&mut similar_to_train);                                           
 
     // Prepare and sample the dataset 
     //-------------------------------
