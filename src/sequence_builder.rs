@@ -3,7 +3,7 @@ use std::{collections::{HashMap, HashSet}, path::Path, ops::RangeBounds};
 use rand::prelude::{SliceRandom, IteratorRandom};
 use rayon::iter::{IntoParallelIterator, ParallelIterator, IntoParallelRefIterator};
 
-use crate::{peptides::{group_by_9mers_rs, generate_a_train_db_by_shuffling_rs, generate_negative_by_sampling_rs, group_peptides_by_parent_rs, fragment_peptide_into_9_mers}, geneExpressionIO::ExpressionTable, utils::split_positive_examples_into_test_and_train};
+use crate::{peptides::{group_by_9mers_rs, generate_a_train_db_by_shuffling_rs, generate_negative_by_sampling_rs, group_peptides_by_parent_rs, fragment_peptide_into_9_mers}, geneExpressionIO::ExpressionTable, utils::{split_positive_examples_into_test_and_train, clean_data_sets}};
 
 /// ### Summary
 /// The working engine for generating training datasets through shuffling
@@ -34,6 +34,10 @@ pub fn prepare_train_ds_shuffling(positive_examples:&Vec<String>,fold_neg:u32,te
     //-------------------------------
     let test_database=generate_a_train_db_by_shuffling_rs(train_seq,fold_neg);
     let train_database=generate_a_train_db_by_shuffling_rs(test_seq,fold_neg); 
+    
+    // clean the results from overlaps 
+    //-------------------
+    let (train_database,test_database)=clean_data_sets(train_database,test_database); 
     
     // return the results 
     //-------------------
@@ -81,14 +85,16 @@ pub fn prepare_train_ds_proteome_sampling(positive_examples:&Vec<String>,proteom
 
     // prepare the train and test positive examples                                           
     let (train_seq,test_seq)=split_positive_examples_into_test_and_train(positive_examples,test_size); 
-    
-    // Generate train and test dataset using proteome sampling 
-    //-------------------------------------------------------
+
     // Prepare and sample the dataset 
     //-------------------------------
     let test_database=generate_negative_by_sampling_rs(train_seq,&target_proteome,fold_neg);
     let train_database=generate_negative_by_sampling_rs(test_seq,&target_proteome,fold_neg); 
 
+    // clean the results from overlaps 
+    //-------------------
+    let (train_database,test_database)=clean_data_sets(train_database,test_database); 
+    
     // return the results 
     //-------------------
     (train_database,test_database)
@@ -119,14 +125,7 @@ pub fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,pro
     if positive_examples.len()==0{panic!("Input collection of positive examples is empty");}
     if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
 
-    // create the number of examples
-    let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
-    // first let's group by 9 mers
-    let unique_9_mers=group_by_9mers_rs(positive_examples)
-            .into_iter()
-            .collect::<Vec<_>>();
-
-    // get parent proteins and remove bound peptides
+    // compute the target proteome 
     //----------------------------------------------
     let positive_parent=group_peptides_by_parent_rs(positive_examples, proteome)
         .into_iter()        
@@ -142,50 +141,20 @@ pub fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,pro
         .map(|(name,seq)|(name.clone(),seq.clone()))
         .collect::<HashMap<_,_>>(); 
 
-
-    // create a thread for splitting the dataset 
-    let mut rng=rand::thread_rng(); 
-
-    // Split the data into test and train
-    //------------------------------- 
-    let test_9mers=unique_9_mers
-                                                    .choose_multiple(&mut rng,num_test_examples)
-                                                    .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
-                                                    .collect::<Vec<_>>();
-    let train_9mers=unique_9_mers
-                                                    .iter()
-                                                    .filter(|(mer,_)| 
-                                                            {
-                                                                for (test_mer, _) in test_9mers.iter()
-                                                                {
-                                                                    if mer ==test_mer{return false}
-                                                                }
-                                                                true
-                                                            }
-                                                        )
-                                                    .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
-                                                    .collect::<Vec<_>>();
-    // Get train and test peptides
-    //----------------------------
-    let test_peptides=test_9mers
-                        .into_iter()
-                        .map(|(_,peptides)| peptides)
-                        .flatten()
-                        .collect::<Vec<_>>();
-
-    let train_peptides=train_9mers
-                        .into_iter()
-                        .map(|(_,peptides)| peptides)
-                        .flatten()
-                        .collect::<Vec<_>>();
-
+    // prepare the train and test positive examples                                           
+    let (train_seq,test_seq)=split_positive_examples_into_test_and_train(positive_examples,test_size); 
+   
     // Generate train and test dataset using proteome sampling 
     //-------------------------------------------------------
     // Prepare and sample the dataset 
     //-------------------------------
-    let test_database=generate_negative_by_sampling_rs(test_peptides,&target_proteome,fold_neg);
-    let train_database=generate_negative_by_sampling_rs(train_peptides,&target_proteome,fold_neg); 
+    let test_database=generate_negative_by_sampling_rs(test_seq,&target_proteome,fold_neg);
+    let train_database=generate_negative_by_sampling_rs(train_seq,&target_proteome,fold_neg); 
 
+    // clean the results from overlaps 
+    //-------------------
+    let (train_database,test_database)=clean_data_sets(train_database,test_database); 
+    
     // return the results 
     //-------------------
     (train_database,test_database)

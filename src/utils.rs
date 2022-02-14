@@ -622,3 +622,39 @@ pub fn split_positive_examples_into_test_and_train(positive_examples:&Vec<String
 
     (train_seq,filtered_test_seq)
 } 
+/// ### Summary 
+/// Clean the generated datasets for any overlap. If an overlap between the train and test was observed the function removes the results 
+/// from the test datasets
+/// ### Parameters 
+///  - train_dataset: a tuple of two vectors one represent the peptides and the second represent the labels 
+///  - test_dataset: a tuple of two vectors one represent the peptides and the second represent the labels 
+/// ### Returns
+///  A tuple of two tuples, each tuple is made of two vectors one representing the sequences and the others the labels. 
+pub fn clean_data_sets(train_dataset:(Vec<String>,Vec<u8>), 
+                test_dataset:(Vec<String>,Vec<u8>))->((Vec<String>,Vec<u8>),(Vec<String>,Vec<u8>))
+{
+    // get the elements from the test datasets that are defined in the train-datasets 
+    //-------------------------------------------------------------------------------
+    let overlapping_samples=test_dataset.0.iter().zip(test_dataset.1.iter())
+            .filter(|(seq,_)|train_dataset.0.contains(&seq))
+            .map(|(seq,label)|(seq.clone(),label.clone()))
+            .collect::<Vec<_>>(); 
+    // if there is no overlap, --> good case we can then terminate the execution.
+    if overlapping_samples.len()==0
+    {
+        return (train_dataset,test_dataset)
+    }
+    // let's filter the test database now
+    //-----------------------------------
+    let filtered_test_dataset=test_dataset.0.iter().zip(test_dataset.1.iter())
+                        .filter(|(test_seq,_)|!overlapping_samples.iter().any(|(seq,_)|&seq==test_seq))
+                        .map(|(seq,label)|(seq.clone(),label.clone()))
+                        .collect::<Vec<_>>();
+
+    let test_string=filtered_test_dataset.iter().map(|(seq,_)|seq.to_owned()).collect::<Vec<_>>(); 
+    let test_label=filtered_test_dataset.iter().map(|(_,label)|label.to_owned()).collect::<Vec<_>>(); 
+    let test_database=(test_string,test_label); 
+    // return the results 
+    //-------------------
+    (train_dataset,test_database)
+}
