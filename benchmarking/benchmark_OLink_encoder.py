@@ -61,7 +61,7 @@ input_table=pd.DataFrame({
     'time':encode_time,
     'Tool Name':tool_name
 })
-
+input_table.to_csv('benchmarking_encoder.tsv',sep='\t',index=False)
 ## Plot the results
 #------------------
 plt.style.use('seaborn-whitegrid')

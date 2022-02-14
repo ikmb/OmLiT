@@ -1,8 +1,9 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::{HashMap, HashSet}, path::Path, ops::RangeBounds};
 
-use rand::prelude::SliceRandom;
+use rand::prelude::{SliceRandom, IteratorRandom};
+use rayon::iter::{IntoParallelIterator, ParallelIterator, IntoParallelRefIterator};
 
-use crate::{peptides::{group_by_9mers_rs, generate_a_train_db_by_shuffling_rs, generate_negative_by_sampling_rs, group_peptides_by_parent_rs}, geneExpressionIO::ExpressionTable};
+use crate::{peptides::{group_by_9mers_rs, generate_a_train_db_by_shuffling_rs, generate_negative_by_sampling_rs, group_peptides_by_parent_rs, fragment_peptide_into_9_mers}, geneExpressionIO::ExpressionTable};
 
 /// ### Summary
 /// The working engine for generating training datasets through shuffling
@@ -26,52 +27,62 @@ pub fn prepare_train_ds_shuffling(positive_examples:&Vec<String>,fold_neg:u32,te
     if positive_examples.len()==0{panic!("Input collection of positive examples is empty");}
     if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
 
-    // create the number of examples
-    let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
-    // first let's group by 9 mers
-    let unique_9_mers=group_by_9mers_rs(positive_examples)
-            .into_iter()
-            .collect::<Vec<_>>();
-            
+    let num_test_examples=(positive_examples.len() as f32 *test_size) as usize; 
+    
     // create a thread for splitting the dataset 
     let mut rng=rand::thread_rng(); 
 
     // Split the data into test and train
     //------------------------------- 
-    let test_9mers=unique_9_mers
-                                                    .choose_multiple(&mut rng,num_test_examples)
-                                                    .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
-                                                    .collect::<Vec<_>>();
-    let train_9mers=unique_9_mers
-                                                    .iter()
-                                                    .filter(|(mer,_)| 
-                                                            {
-                                                                for (test_mer, _) in test_9mers.iter()
-                                                                {
-                                                                    if mer ==test_mer{return false}
-                                                                }
-                                                                true
-                                                            }
-                                                        )
-                                                    .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
-                                                    .collect::<Vec<_>>();
+    let index_test=(0..positive_examples.len())
+                                    .choose_multiple(&mut rng,num_test_examples); 
+    println!("The number of element in the test : {}",index_test.len()); 
+    let test_seq = index_test
+                                        .iter() 
+                                        .map(|index|positive_examples[*index].clone())
+                                        .collect::<Vec<_>>();
+
+    let mut train_seq=(0..positive_examples.len())
+                        .filter(|index|!index_test.contains(index))
+                        .map(|index|positive_examples[index].clone())
+                        .collect::<Vec<_>>();
+
+    println!("The number of train 9mers is: {}",test_seq.len()); 
+    println!("The number of test 9mers is: {}",train_seq.len());
     // Get train and test peptides
     //----------------------------
-    let test_peptides=test_9mers
-                        .into_iter()
-                        .map(|(_,peptides)| peptides)
-                        .flatten()
-                        .collect::<Vec<_>>();
+    // Extract the test examples that are similar to the train dataset.
+    let mut similar_to_train=test_seq
+                    .par_iter()
+                    .filter(|peptide|
+                    {
+                        for target_test_mers in fragment_peptide_into_9_mers(peptide)
+                        {
+                            for train_pep in train_seq.iter(){if train_pep.contains(&target_test_mers){return true}} 
+                        }
+                        return false
+                    })
+                    .map(|elem|elem.clone())
+                    .collect::<Vec<_>>(); 
+    // Extract the dataset from the test dataset 
+    //------------------------------------------
+    let filtered_test_seq=test_seq
+                        .into_par_iter()
+                        .filter(|peptide|!similar_to_train.contains(&peptide))
+                        .collect::<Vec<_>>(); 
+                        
+    train_seq.append(&mut similar_to_train); 
     
-    let train_peptides=train_9mers
-                        .into_iter()
-                        .map(|(_,peptides)| peptides)
-                        .flatten()
-                        .collect::<Vec<_>>();
+    println!("************* Final stats: "); 
+    println!("Number of positive train peptides, {}", train_seq.len());
+    println!("Number of positive test peptides, {}", filtered_test_seq.len());
+    // filter and test the train peptides
+    //----------------------------------                                            
+
     // Prepare and sample the dataset 
     //-------------------------------
-    let test_database=generate_a_train_db_by_shuffling_rs(test_peptides,fold_neg);
-    let train_database=generate_a_train_db_by_shuffling_rs(train_peptides,fold_neg); 
+    let test_database=generate_a_train_db_by_shuffling_rs(train_seq,fold_neg);
+    let train_database=generate_a_train_db_by_shuffling_rs(filtered_test_seq,fold_neg); 
     
     // return the results 
     //-------------------
