@@ -346,10 +346,8 @@ pub fn generate_train_ds_pm<'py>(py:Python<'py>,
     //-------------------------------------------------------------------
     let num_entries=fold_neg*positive_examples
                 .iter()
-                .map(|(_,peptides)| if peptides.len()>100{return 50;} else {return 0;})
+                .map(|(_,peptides)| if peptides.len() > 100{return peptides.len() as u32;} else {return 0;})
                 .sum::<u32>(); 
-    
-    // Compute the average number of test and size examples
     //-----------------------------------------------------
     let num_test_examples=(test_size*num_entries as f32) as u32;
     let num_train_examples=(num_entries-num_test_examples) as usize;
@@ -367,7 +365,7 @@ pub fn generate_train_ds_pm<'py>(py:Python<'py>,
     //-------------------------------
     for (allele_name,peptides) in positive_examples.iter()
     {
-        if peptides.len()>50{continue;}// check that the number of peptides is above 50 and skip it otherwise
+        if peptides.len()<100{continue;}// check that the number of peptides is above 50 and skip it otherwise
 
         let ((mut train_seq,mut train_label),(mut test_seq,mut test_label))=match method.as_str()
         {
