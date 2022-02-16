@@ -87,7 +87,7 @@ import OLink as linker # e.g. to have have a clean name space
 ?generate_train_based_on_seq_exp_subcell # print help message about a specific functions 
 ```
 
-## using the library !!
+## using the library!!
 
 The python scripts defined at the test and the benchmarking directories shall be used as a good start for learning Rust.
 

@@ -526,7 +526,7 @@ pub fn parse_allele_names(name:String)->String
     {
         true =>
         {
-            name.split("").collect::<Vec<_>>()[1].replace("", "").replace("*", "_").to_string()
+            name.split("-").collect::<Vec<_>>()[1].replace("", "").replace("*", "_").replace(":","").to_string()
         },
         false =>
         {
@@ -552,9 +552,9 @@ pub fn read_Q_table(path2file:&Path)->(Vec<String>,Vec<String>,Vec<f32>)
 
     // Allocate the vectors to fill the results
     //-----------------------------------------
-    let mut allele_names=Vec::with_capacity(131_009); 
-    let mut peptide_seq=Vec::with_capacity(131_009);
-    let mut affinity=Vec::with_capacity(131_009);
+    let mut allele_names=Vec::with_capacity(131_008); 
+    let mut peptide_seq=Vec::with_capacity(131_008);
+    let mut affinity=Vec::with_capacity(131_008);
     
     // Fill the results 
     //-----------------
@@ -563,7 +563,7 @@ pub fn read_Q_table(path2file:&Path)->(Vec<String>,Vec<String>,Vec<f32>)
         let row=record.unwrap(); // getting a string record from the data
         allele_names.push(parse_allele_names(row[0].to_string())); 
         peptide_seq.push(row[1].to_string());
-        affinity.push(row[2].parse::<f32>().unwrap())
+        affinity.push(row[3].parse::<f32>().unwrap())
     }
     (allele_names,peptide_seq,affinity)
 }

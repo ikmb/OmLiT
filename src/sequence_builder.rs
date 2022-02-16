@@ -1,9 +1,9 @@
-use std::{collections::{HashMap, HashSet}, path::Path, ops::RangeBounds};
-
-use rand::prelude::{SliceRandom, IteratorRandom};
-use rayon::iter::{IntoParallelIterator, ParallelIterator, IntoParallelRefIterator};
-
-use crate::{peptides::{group_by_9mers_rs, generate_a_train_db_by_shuffling_rs, generate_negative_by_sampling_rs, group_peptides_by_parent_rs, fragment_peptide_into_9_mers}, geneExpressionIO::ExpressionTable, utils::{split_positive_examples_into_test_and_train, clean_data_sets}};
+use std::{collections::HashMap, path::Path};
+use crate::{
+        peptides::{generate_a_train_db_by_shuffling_rs, generate_negative_by_sampling_rs, group_peptides_by_parent_rs},
+         utils::{
+            split_positive_examples_into_test_and_train, clean_data_sets},
+            functions::read_cashed_db};
 
 /// ### Summary
 /// The working engine for generating training datasets through shuffling
@@ -154,7 +154,7 @@ pub fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,pro
     // clean the results from overlaps 
     //-------------------
     let (train_database,test_database)=clean_data_sets(train_database,test_database); 
-    
+
     // return the results 
     //-------------------
     (train_database,test_database)
@@ -166,7 +166,7 @@ pub fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,pro
 /// ### Parameters
 /// positive_examples: List of string representing positive peptides 
 /// proteome: a dict of protein name and protein sequences
-/// path2expression_map: The path to load gene expression datasets
+/// path2cashed_db: The path to load a cahsed database object 
 /// tissue_name: The name of the tissue to be restrict the gene expression to 
 /// threshold: The minimum expression level of each protein
 /// fold_neg: The fold of negative examples an integer representing the ration of positives to negative, if 1 then 1 negative is generated for every positive
@@ -183,103 +183,65 @@ pub fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,pro
 ///                               |---> test_seq: A vector of string containing the testing peptide sequences
 ///                               |---> test_label:   A vector of u8 containing or representing test label
 pub fn prepare_train_ds_expressed_protein_sampling(positive_examples:&Vec<String>,proteome:&HashMap<String,String>,
-    path2expression_map:&Path, tissue_name:&String, threshold:f32,
+    path2cashed_db:&Path, tissue_name:&String, threshold:f32,
     fold_neg:u32,test_size:f32)->((Vec<String>, Vec<u8>),(Vec<String>, Vec<u8>))
 {
     
-     // check the input is correct
-     if positive_examples.len()==0{panic!("Input collection of positive examples is empty");}
-     if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
- 
-     let expression_db=ExpressionTable::read_tsv(path2expression_map, None).unwrap().to_hashmap_parallel();
-     let target_tissue_exp_db=match expression_db.get(tissue_name)
-     {
-         Some(table)=>table,
-         None=>panic!("The provided tissue name:{} does not exist in the database.",tissue_name)
-     }; 
-     // get a list of expressed proteins 
-     //---------------------------------
-     let target_proteins=target_tissue_exp_db
+    // check the input is correct
+    if positive_examples.len()==0{panic!("Input collection of positive examples is empty");}
+    if test_size >=1.0 || test_size<=0.0 {panic!("your test size: {} is out on range, it must be a value between [0,1)",test_size)}
+
+    let expression_db=read_cashed_db(path2cashed_db); 
+    let target_tissue_exp_db=match expression_db.get(tissue_name)
+    {
+        Some(table)=>table,
+        None=>panic!("The provided tissue name:{} does not exist in the database.",tissue_name)
+    }; 
+    // get a list of expressed proteins 
+    //---------------------------------
+    let target_proteins=target_tissue_exp_db
             .iter()
-            .filter(|(_,exp_level)|exp_level>&&threshold)
+            .filter(|(_,prot_info)|prot_info.get_expression() > threshold)
             .map(|(protein_name,_)|protein_name.clone())
             .collect::<Vec<_>>();
-     
-     // filter the list of proteomes
-     //-----------------------------
-     let exp_proteome=proteome
-         .iter()
-         .filter(|(protein_name,_)|target_proteins.contains(protein_name))
-         .map(|(protein_name,seq)|(protein_name.clone(),seq.clone()))
-         .collect::<HashMap<_,_>>(); 
- 
-     // create the number of examples
-     let num_test_examples=(test_size*positive_examples.len() as f32 ) as usize;
-     // first let's group by 9 mers
-     let unique_9_mers=group_by_9mers_rs(positive_examples)
-             .into_iter()
-             .collect::<Vec<_>>();
-     
-     // get parent proteins and remove bound peptides
-     //----------------------------------------------
-     let positive_parent=group_peptides_by_parent_rs(positive_examples, &proteome)
-         .into_iter()        
-         .map(|(_,parents)|parents)
-         .flatten()
-         .collect::<Vec<_>>(); 
- 
-     // filter the database from positive proteins
-     //-------------------------------------------
-     let target_proteome=exp_proteome
-         .into_iter()
-         .filter(|(name,_)| !positive_parent.contains(name))
-         .map(|(name,seq)|(name.clone(),seq.clone()))
-         .collect::<HashMap<_,_>>(); 
- 
- 
-     // create a thread for splitting the dataset 
-     let mut rng=rand::thread_rng(); 
- 
-     // Split the data into test and train
-     //------------------------------- 
-     let test_9mers=unique_9_mers
-                                                     .choose_multiple(&mut rng,num_test_examples)
-                                                     .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
-                                                     .collect::<Vec<_>>();
-     let train_9mers=unique_9_mers
-                                                     .iter()
-                                                     .filter(|(mer,_)| 
-                                                             {
-                                                                 for (test_mer, _) in test_9mers.iter()
-                                                                 {
-                                                                     if mer ==test_mer{return false}
-                                                                 }
-                                                                 true
-                                                             }
-                                                         )
-                                                     .map(|(mer,peptides)|(mer.clone(),peptides.clone()))
-                                                     .collect::<Vec<_>>();
-     // Get train and test peptides
-     //----------------------------
-     let test_peptides=test_9mers
-                         .into_iter()
-                         .map(|(_,peptides)| peptides)
-                         .flatten()
-                         .collect::<Vec<_>>();
-     
-     let train_peptides=train_9mers
-                         .into_iter()
-                         .map(|(_,peptides)| peptides)
-                         .flatten()
-                         .collect::<Vec<_>>();
-     
-     // Generate train and test dataset using proteome sampling 
-     //-------------------------------------------------------
-     // Prepare and sample the dataset 
-     //-------------------------------
-     let test_database=generate_negative_by_sampling_rs(test_peptides,&target_proteome,fold_neg);
-     let train_database=generate_negative_by_sampling_rs(train_peptides,&target_proteome,fold_neg); 
     
+    // filter the list of proteomes
+    //-----------------------------
+    let exp_proteome=proteome
+        .iter()
+        .filter(|(protein_name,_)|target_proteins.contains(protein_name))
+        .map(|(protein_name,seq)|(protein_name.clone(),seq.clone()))
+        .collect::<HashMap<_,_>>(); 
+    
+    // get parent proteins and remove bound peptides
+    //----------------------------------------------
+    let positive_parent=group_peptides_by_parent_rs(positive_examples, &proteome)
+        .into_iter()        
+        .map(|(_,parents)|parents)
+        .flatten()
+        .collect::<Vec<_>>(); 
+
+    // filter the database from positive proteins
+    //-------------------------------------------
+    let target_proteome=exp_proteome
+        .into_iter()
+        .filter(|(name,_)| !positive_parent.contains(name))
+        .map(|(name,seq)|(name.clone(),seq.clone()))
+        .collect::<HashMap<_,_>>(); 
+
+    // prepare the train and test positive examples                                           
+    let (train_seq,test_seq)=split_positive_examples_into_test_and_train(positive_examples,test_size); 
+     
+    // Generate train and test dataset using proteome sampling 
+    //-------------------------------------------------------
+    // Prepare and sample the dataset 
+    //-------------------------------
+    let test_database=generate_negative_by_sampling_rs(test_seq,&target_proteome,fold_neg);
+    let train_database=generate_negative_by_sampling_rs(train_seq,&target_proteome,fold_neg); 
+    
+    // clean the results from overlaps 
+    //-------------------
+    let (train_database,test_database)=clean_data_sets(train_database,test_database); 
     // return the results 
     //-------------------
     (train_database,test_database)

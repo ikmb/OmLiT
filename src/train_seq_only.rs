@@ -5,6 +5,7 @@
 use pyo3::prelude::*;
 use ndarray::{Dim, Array};
 use numpy::{PyArray, ToPyArray};
+use rand::prelude::IteratorRandom;
 use rayon::iter::IntoParallelIterator;
 use crate::peptides::{group_by_9mers_rs,generate_a_train_db_by_shuffling_rs,encode_sequence_rs};
 use crate::sequence_builder::{prepare_train_ds_proteome_sampling, prepare_train_ds_same_protein_sampling, prepare_train_ds_shuffling, prepare_train_ds_expressed_protein_sampling}; 
@@ -62,8 +63,8 @@ pub fn generate_train_ds_shuffling_sm<'py>(py:Python<'py>,
     let encoded_train_labels= Array::from_shape_vec((encoded_train_seq.shape()[0],1), train_database.1).unwrap().to_pyarray(py);
 
     (
-        (encoded_test_seq,encoded_test_labels),
-        (encoded_train_seq,encoded_train_labels)
+        (encoded_train_seq,encoded_train_labels),
+        (encoded_test_seq,encoded_test_labels)
     )
 }
 
@@ -147,8 +148,8 @@ pub fn generate_train_ds_proteome_sampling_sm<'py>(py:Python<'py>,
     let encoded_train_seq=encode_sequence_rs(train_database.0,max_len).to_pyarray(py);                           
     let encoded_train_labels= Array::from_shape_vec((encoded_train_seq.shape()[0],1), train_database.1).unwrap().to_pyarray(py);
     (
-        (encoded_test_seq,encoded_test_labels),
-        (encoded_train_seq,encoded_train_labels)
+        (encoded_train_seq,encoded_train_labels),
+        (encoded_test_seq,encoded_test_labels)
     )
 }
 
@@ -198,12 +199,13 @@ pub fn generate_train_ds_same_protein_sampling_sm<'py>(py:Python<'py>,
     let encoded_train_labels= Array::from_shape_vec((encoded_train_seq.shape()[0],1), train_database.1).unwrap().to_pyarray(py);
 
     (
-        (encoded_test_seq,encoded_test_labels),
-        (encoded_train_seq,encoded_train_labels)
+        (encoded_train_seq,encoded_train_labels),
+        (encoded_test_seq,encoded_test_labels)
     )
 }
 
-/// ### Signature(positive_examples:List[str],proteome:Dict[str,str],path2expression_map:str,
+/// ### Signature
+/// generate_train_ds_expressed_protein_sampling_sm(positive_examples:List[str],proteome:Dict[str,str],path2expression_map:str,
 ///                     tissue_name:str,threshold:float, 
 ///                     fold_neg:int, max_len:int, test_size:float)->Tuple[
 ///                                                                                     Tuple[np.ndarray,np.ndarray],
@@ -408,7 +410,27 @@ pub fn generate_train_ds_pm<'py>(py:Python<'py>,
     )
 }
 
-// CREATE THE FUNCTIONS
+/// ### Signature
+/// generate_train_ds_Qd(path2load_ds:str,path2pseudo_seq:str,
+///          test_size:float, max_len: float)-> Tuple[
+///                 Tuple[np.ndarray,np.ndarray,np.ndarry],
+///                 Tuple[np.ndarray,np.ndarray,np.ndarry],
+///            ]
+/// ### Parameters
+/// path2load_ds: The path to load the database, which is expected to be a table of three column, as follow:
+///     1. HLA --> which describe the allele names using the standard notation, e.g. DPA1*01:03-DPB1*02:01
+///     2. sequence --> which describe the peptide sequence
+///     3. length --> which describe the length of the peptide
+///     4. the log IC50 --> which describe the normalized IC50 scores.  
+/// 
+/// path2pseudo_seq: Which is a description of the path to load the pseudo-sequences. 
+/// test_size: The size of the test size, a float between in the range (0,1) i.e. bigger than 0 and smaller than 1, representing the fraction of the test dataset. 
+/// max_len: The maximum length to transfer a variable length peptides into a fixed length peptides. Here, shorter peptides are zero padded into this predefined.
+/// ### Returns
+///     A tuple of tuple representing the training and the testing datasets, each of these tuple contains three arrays:
+///     1. train_array: A NumPy array of type np.uint8 and shape of (num_train_examples | num_test_examples, max_length) representing the encoded peptide sequences.  
+///     2. pseudo_seq: A NumPy array of type np.uint8 and shape of (num_train_examples | num_test_examples,32) representing the encoded HLA pseudo-sequence.  
+///     3. labels: A NumPy array of type np.float32 and shape of (num_train_examples | num_test_examples,f32) representing the test_size.
 #[pyfunction]
 pub fn generate_train_ds_Qd<'py>(py:Python<'py>,path2load_ds:String, path2pseudo_seq:String, test_size:f32, max_len:usize)->(
     (&'py PyArray<u8,Dim<[usize;2]>>, &'py PyArray<u8,Dim<[usize;2]>> ,&'py PyArray<f32,Dim<[usize;2]>>),
@@ -419,43 +441,18 @@ pub fn generate_train_ds_Qd<'py>(py:Python<'py>,path2load_ds:String, path2pseudo
     if test_size<=0.0 || test_size>1.0{panic!("In-valid test name: expected the test-size to be a float bigger than 0.0 and smaller than 1.0, however, the test size is: {}",test_size);}
     // Load the training quantitative datasets 
     //-----------------------------------------
-    let(allele_names,peptides,affinity)=read_Q_table(Path::new(&path2load_ds));
-
-    // Group the peptides by the 9 mers core
-    //--------------------------------------
-    let grouped_by_9mers_core=group_by_9mers_rs(&peptides)
-                    .into_iter()
-                    .collect::<Vec<_>>();
-    
+    let(allele_names,peptides,affinity)=read_Q_table(Path::new(&path2load_ds));  
     
     // Compute the size of the test dataset 
     //-------------------------------------
-    let num_dp=grouped_by_9mers_core.len();
+    let num_dp=allele_names.len();
     let num_test_dp=(num_dp as f32 *test_size) as usize; 
 
-    // Sample the test size 
-    //---------------------
+    // sample the index of the test datasets
+    //--------------------------------------
     let mut rng=rand::thread_rng(); 
-    let test_peptides_index=grouped_by_9mers_core
-                        .choose_multiple(&mut rng,num_test_dp)
-                        .map(|(_,peptides_from_core)|peptides_from_core.clone())
-                        .flatten()
-                        .collect::<Vec<String>>()
-                        .into_par_iter()
-                        .map(|pep| peptides.iter()
-                                            .enumerate()
-                                            .filter(|(_,peptides_elem)| &&pep==peptides_elem)
-                                            .map(|(idx,_)| idx) 
-                                            .collect::<Vec<_>>()
-                                        )
-                        .flatten()
-                        .collect::<Vec<usize>>()
-                        .iter()
-                        .map(|elem|elem.clone())
-                        .collect::<HashSet<usize>>()
-                        .iter()
-                        .map(|elem|elem.clone())
-                        .collect::<Vec<usize>>();
+    let test_peptides_index=(0..allele_names.len()).choose_multiple(&mut rng, num_test_dp); 
+
     // Extract the index of the binding and non-binding peptides 
     //----------------------------------------------------------
     let (mut test_alleles,mut test_peptides,mut test_affinity)=(Vec::with_capacity(num_test_dp),
@@ -485,7 +482,7 @@ pub fn generate_train_ds_Qd<'py>(py:Python<'py>,path2load_ds:String, path2pseudo
             train_affinity.push(affinity[elem]);
         }
     }
-    // load the psudo sequences 
+    // load the pseudo-sequences 
     let pseudo_seq_map=read_pseudo_seq(&Path::new(&path2pseudo_seq));
     // get the sequence of the target alleles
     //---------------------------------------
@@ -502,7 +499,7 @@ pub fn generate_train_ds_Qd<'py>(py:Python<'py>,path2load_ds:String, path2pseudo
     let encoded_test_labels= Array::from_shape_vec((test_peptides.len(),1), test_affinity).unwrap().to_pyarray(py);
     let encoded_test_peptide_seq=encode_sequence_rs(test_peptides,max_len).to_pyarray(py);
     let encoded_test_pseudo_seq=encode_sequence_rs(test_alleles,34).to_pyarray(py);  
-    
+
     // return the results 
     //-------------------
     (

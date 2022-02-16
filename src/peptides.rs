@@ -83,7 +83,6 @@ pub fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:
                                 .filter(|(_,prot_seq)|prot_seq.len()>=30)
                                 .map(|(prot_name,prot_seq)| (prot_name.clone(),prot_seq.clone()))
                                 .collect::<Vec<_>>(); 
-
     let mut sampler_rng=rand::thread_rng(); // create a RNG to sample the target proteins
     let mut position_sampler=rand::thread_rng(); // create a RNG to sample the position in the protein 
     let normal = Normal::new(15.0, 3.0).unwrap(); // create a normal distribution to sample the peptide from 
@@ -94,7 +93,14 @@ pub fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:
     let position_in_backbone=position_sampler.gen_range(0..target_protein.1.len()-(peptide_length+1)); // sample the position in the protein backbone 
     let sampled_peptide=target_protein.1[position_in_backbone..position_in_backbone+peptide_length].to_string();
     // check that the peptide is not in positive peptides 
-    if positive_peptides.contains(&sampled_peptide) // if it is there we try again
+    if positive_peptides.iter().any(|pos_peptide|
+    {
+        for negative_mer in fragment_peptide_into_9_mers(&sampled_peptide)
+        {
+            if pos_peptide.contains(&negative_mer){return true;}
+        }
+        return false; // a short-circuit code to report if there overlap or not in the database 
+    }) // if it is there we try again
     {
         return sample_a_negative_peptide(positive_peptides,&filtered_proteome)
     }
@@ -285,11 +291,24 @@ pub fn generate_a_train_db_by_shuffling_rs(mut positive_examples:Vec<String>, fo
 /// A warper function used for generating negative examples from a collection of positive examples using a pool of threads
 pub fn generate_negative_by_shuffling_rs(peptides:&Vec<String>, fold_neg:u32)->Vec<String>
 {
-    peptides
-    .par_iter()
-    .map(|peptide|shuffle_peptide_sequence(peptide,fold_neg))
-    .flatten_iter()
-    .collect::<Vec<_>>()
+    // create the negatives by shuffling 
+    let negatives=peptides
+        .par_iter()
+        .map(|peptide|shuffle_peptide_sequence(peptide,fold_neg))
+        .flatten_iter()
+        .collect::<Vec<_>>(); 
+    // remove negatives that might have 9 mers overlap with the positive dataset 
+    negatives
+        .into_par_iter()
+        .filter(|peptide|
+            {
+                for negative_mer in fragment_peptide_into_9_mers(&peptide)
+                {
+                    for pep in peptides.iter(){if pep.contains(&negative_mer) {return false}}
+                }
+                return true
+            })
+            .collect::<Vec<_>>()
 }
 
 /// ### summary

@@ -19,8 +19,6 @@ ERROR_TWO="IN CORRECT SUM OF ELEMENTS"
 #-----------------------
 print(f"{time.ctime()} INFO:: Checking the correctness of the encode ....")
 
-
-
 ## encode input sequences
 #------------------------
 CASE_ONE=[""]
