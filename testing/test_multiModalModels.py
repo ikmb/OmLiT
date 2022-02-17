@@ -44,5 +44,35 @@ except Exception as exp:
 assert len(train_data)==4, "function retrained in correct number of elements for the train array"
 assert len(test_data)==4, "function retrained in correct number of elements for the test array"
 
-## Reshuffling 
-#-------------
+print(f"Testing the dataset with a model train on sequence, expression and sub-cellular location ..., starting at: {time.ctime()}")
+try:
+    (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell(INPUT,
+                positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,10,
+                TEST_SIZE)
+    print('Testing with random shuffling passed, ...')
+except Exception as exp:
+    print(f"Test failed ... {str(exp)}")
+assert len(train_data)==5, "function retrained in correct number of elements for the train array"
+assert len(test_data)==5, "function retrained in correct number of elements for the test array"
+
+print(f"Testing the dataset with a model train on sequence, expression, sub-cellular location and context ..., starting at: {time.ctime()}")
+try:
+    (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell_context(INPUT,
+                positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,10,
+                TEST_SIZE)
+    print('Testing with random shuffling passed, ...')
+except Exception as exp:
+    print(f"Test failed ... {str(exp)}")
+assert len(train_data)==6, "function retrained in correct number of elements for the train array"
+assert len(test_data)==6, "function retrained in correct number of elements for the test array"
+
+print(f"Testing the dataset with a model train on sequence, expression, sub-cellular location, context and distance to glycosylation ..., starting at: {time.ctime()}")
+try:
+    (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell_loc_context_d2g(INPUT,
+                positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,10,
+                TEST_SIZE)
+    print('Testing with random shuffling passed, ...')
+except Exception as exp:
+    print(f"Test failed ... {str(exp)}")
+assert len(train_data)==7, "function retrained in correct number of elements for the train array"
+assert len(test_data)==7, "function retrained in correct number of elements for the test array"

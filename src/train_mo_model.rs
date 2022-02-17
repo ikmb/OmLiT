@@ -208,15 +208,17 @@ input2prepare:(Vec<String>,Vec<String>,Vec<String>),
 {
     // Prepare the prelude for the encoders
     //------------------------------------- 
+    println!("Loading the prelude ...{}",Utc::now()); 
     let (train_data, test_data, pseudo_seq
         ,anno_table)=preparation_prelude(&input2prepare,&proteome,path2cashed_db,path2pseudo_seq,
         threshold,fold_neg,test_size);
     
     // encode and prepare the training data
     //-------------------------------------
+    println!("annotating the train database...{}",Utc::now());
     let (encoded_train_data,unmapped_train_data)=prepare_data_for_seq_exp_and_subcellular_data(train_data,
         &pseudo_seq,max_len,&proteome,&anno_table); 
-    
+    println!("annotating the test database...{}",Utc::now());
     let(encoded_test_data,unmapped_test_data)=prepare_data_for_seq_exp_and_subcellular_data(test_data,
         &pseudo_seq,max_len,&proteome,&anno_table); 
 
@@ -322,6 +324,7 @@ pub fn generate_train_based_on_seq_exp_subcell_context<'py>(py:Python<'py>,
 {
     // Prepare the prelude for the encoders
     //------------------------------------- 
+    println!("Loading the prelude ...{}",Utc::now()); 
     let (train_data, test_data, pseudo_seq
         ,anno_table)=preparation_prelude(&input2prepare,&proteome,path2cashed_db,path2pseudo_seq,
         threshold,fold_neg,test_size);
@@ -329,9 +332,11 @@ pub fn generate_train_based_on_seq_exp_subcell_context<'py>(py:Python<'py>,
     //-----------------------
     // encode and prepare the training data
     //-------------------------------------
+    println!("annotating the train database...{}",Utc::now());
     let (encoded_train_data,unmapped_train_data)=prepare_data_for_seq_exp_subcellular_and_context_data(train_data,
         &pseudo_seq,max_len,&proteome,&anno_table); 
     
+    println!("annotating the test database...{}",Utc::now());
     let(encoded_test_data,unmapped_test_data)=prepare_data_for_seq_exp_subcellular_and_context_data(test_data,
         &pseudo_seq,max_len,&proteome,&anno_table); 
 
@@ -442,16 +447,18 @@ pub fn generate_train_based_on_seq_exp_subcell_loc_context_d2g<'py>(py:Python<'p
     )
 {
     // Prepare the prelude for the encoders
-    //------------------------------------- 
+    //-------------------------------------
+    println!("Loading the prelude ...{}",Utc::now());  
     let (train_data, test_data, pseudo_seq
         ,anno_table)=preparation_prelude(&input2prepare,&proteome,path2cashed_db,path2pseudo_seq,
         threshold,fold_neg,test_size);
     
     // encode and prepare the training data
     //-------------------------------------
+    println!("annotating the train database...{}",Utc::now());
     let (encoded_train_data,unmapped_train_data)=prepare_data_for_seq_exp_subcellular_context_d2g_data(train_data,
         &pseudo_seq,max_len,&proteome,&anno_table); 
-    
+    println!("annotating the test database...{}",Utc::now());
     let(encoded_test_data,unmapped_test_data)=prepare_data_for_seq_exp_subcellular_context_d2g_data(test_data,
         &pseudo_seq,max_len,&proteome,&anno_table); 
     
