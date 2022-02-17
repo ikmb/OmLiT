@@ -3,7 +3,7 @@ use csv;
 use rand::prelude::IteratorRandom;
 use rayon::prelude::*;
 
-use crate::{peptides::{group_by_9mers_rs, fragment_peptide_into_9_mers}, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db, constants::UNIQUE_GO_TERMS}; 
+use crate::{peptides::{fragment_peptide_into_9_mers}, peptides::sample_a_negative_peptide, protein_info::ProteinInfo, functions::read_cashed_db, constants::UNIQUE_GO_TERMS}; 
 /// ### Summary 
 /// A reader function for reading HLA pseudo sequences
 /// ### Parameters 
@@ -64,95 +64,27 @@ pub fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<St
                 .into_iter()
                 .map(|(tissue_name,peptides)|
                 {
+                    // Load the prelude
+                    //-----------------
+                    let (target_protein_seq,train_index,test_index)=sampling_from_constrained_tissue_and_alleles_prelude(
+                        target_proteomes,&tissue_name,proteome,&peptides,test_size);
                     
-                    // group by the 9 mers cores
-                    //-----------------------------------------------------
-                    let grouped_by_peptides=group_by_9mers_rs(&peptides);
-                    let peptide_mers=grouped_by_peptides
-                        .keys()
-                        .map(|mers_core|mers_core.to_string())
-                        .collect::<Vec<_>>(); 
+                    // Create the positive and the negatives
+                    //--------------------------------------
+                    let train_database=prepare_dataset_by_proteome_sampling_single_allele_and_tissue(
+                        train_index,&peptides,fold_neg,&target_protein_seq); 
                     
-                    // Create the target tissue proteome to sample from 
-                    //-------------------------------------------------
-                    let target_proteins=target_proteomes.get(&tissue_name).unwrap();
-                    let target_protein_seq=proteome
-                            .iter()
-                            .filter(|(name,_)|target_proteins.contains(name))
-                            .map(|(name,seq)|(name.clone().to_owned(),seq.clone().to_owned()))
-                            .collect::<Vec<_>>();
+                    let test_database=prepare_dataset_by_proteome_sampling_single_allele_and_tissue(
+                        test_index,&peptides,fold_neg,&target_protein_seq); 
                     
-                    // Compute the size of the test dataset 
-                    //-------------------------------------
-                    let num_dp=grouped_by_peptides.len();
-                    let num_test_dp=(num_dp as f32 *test_size) as usize; 
-                    // create a random number generator
-                    //--------------------- 
-                    let mut rng=rand::thread_rng(); 
-                    // prepare the train and test indices
-                    //-----------------------------------
-                    let test_index=(0..grouped_by_peptides.len())
-                        .choose_multiple(&mut rng, num_test_dp);
-                    
-                    let train_index=(0..grouped_by_peptides.len())
-                            .filter(|index|!test_index.contains(index))
-                            .collect::<Vec<_>>(); 
-                
-                    // prepare the train dataset
-                    //--------------------------
-                    // 1. positive peptides 
-                    let mut positive_train_pep=train_index
-                        .into_iter()
-                        .map(|index|grouped_by_peptides.get(&peptide_mers[index]).unwrap())
-                        .flatten()
-                        .map(|pep|pep.clone().to_owned())
-                        .collect::<Vec<_>>();
-                    let mut positive_train_label=vec![1;positive_train_pep.len()]; 
-                    
-                    // 2. negative peptides
-                    let mut sampled_negatives_train_pep=(0..(positive_train_pep.len() as u32 * fold_neg))
-                        .into_iter()
-                        .map(|_|sample_a_negative_peptide(&peptides,&target_protein_seq))
-                        .collect::<Vec<String>>();
-                    let mut sampled_negatives_train_label=vec![0;sampled_negatives_train_pep.len()]; 
-                    
-                    // 3. combine the results into a two vectors from sequences and labels
-                    let mut train_seq=Vec::with_capacity(positive_train_pep.len()+sampled_negatives_train_pep.len()); 
-                    train_seq.append(&mut positive_train_pep); 
-                    train_seq.append(&mut sampled_negatives_train_pep); 
-
-                    let mut train_labels=Vec::with_capacity(positive_train_label.len()+sampled_negatives_train_label.len());
-                    train_labels.append(&mut positive_train_label); 
-                    train_labels.append(&mut sampled_negatives_train_label);
-
-                    // prepare the test dataset
-                    //--------------------------
-                    // 1. positive peptides 
-                    let mut positive_test_pep=test_index
-                        .into_iter()
-                        .map(|index|grouped_by_peptides.get(&peptide_mers[index]).unwrap())
-                        .flatten()
-                        .map(|pep|pep.clone().to_owned())
-                        .collect::<Vec<_>>();
-                    let mut positive_test_label=vec![1;positive_test_pep.len()]; 
-                    
-                    // 2. negative peptides
-                    let mut sampled_negatives_test_pep=(0..(positive_test_pep.len() as u32*fold_neg))
-                        .into_iter()
-                        .map(|_|sample_a_negative_peptide(&peptides,&target_protein_seq))
-                        .collect::<Vec<String>>();
-                    let mut sampled_negatives_test_label=vec![0;sampled_negatives_test_pep.len()]; 
-                    
-                    // 3. combine the results into a two vectors from sequences and labels
-                    let mut test_seq=Vec::with_capacity(positive_test_pep.len()+sampled_negatives_test_pep.len()); 
-                    test_seq.append(&mut positive_test_pep); 
-                    test_seq.append(&mut sampled_negatives_test_pep); 
-
-                    let mut test_labels=Vec::with_capacity(positive_test_label.len()+sampled_negatives_test_label.len());
-                    test_labels.append(&mut positive_test_label); 
-                    test_labels.append(&mut sampled_negatives_test_label);
-                    
-                    // generate and return the output 
+                    // remove overlaps between train and test labels
+                    //----------------------------------------------
+                     // clean the results from overlaps 
+                    //-------------------
+                    let ((train_seq,train_labels),
+                                        (test_seq,test_labels))=clean_data_sets(train_database,test_database);
+                    // Return the output
+                    //------------------ 
                     (tissue_name,
                         ((train_seq,train_labels),
                         (test_seq,test_labels))
@@ -162,59 +94,196 @@ pub fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<St
                 (allele_name.to_string(),results_from_all_tissues)
         })
         .collect::<HashMap<String,HashMap<String,((Vec<String>,Vec<u8>),(Vec<String>,Vec<u8>))>>>();
-        // Unroll the results in to the vector form 
-        //------------------------------------------
-        // 1. get number of train and test data points 
-        let num_train_dp=results.iter()
-            .map(|(_,tissue_data)|
-            {
-                tissue_data.iter().map(|(_,(train_data,_))|train_data.0.len()).sum::<usize>()
-            }) 
-            .sum::<usize>(); 
-        let num_test_dp=results.iter()
-        .map(|(_,tissue_data)|
-        {
-            tissue_data.iter().map(|(_,(_,test_data))|test_data.0.len()).sum::<usize>()
-        }) 
-        .sum::<usize>(); 
+        
+    // Unroll the results
+    //--------------------
+    let (
+        (train_peptide,train_allele_name,train_tissue_name,train_label),
+        (test_peptide,test_allele_name,test_tissue_name,test_label)
+    )=generated_rolled_vectors(results);
 
-        // 2. allocate vectors to hold the results 
-        let (mut train_peptide, mut train_allele_name, mut train_tissue_name, mut train_label)=(
-            Vec::with_capacity(num_train_dp),Vec::with_capacity(num_train_dp),Vec::with_capacity(num_train_dp),
-        Vec::with_capacity(num_train_dp)); 
-
-        let (mut test_peptide, mut test_allele_name, mut test_tissue_name, mut test_label)=(
-            Vec::with_capacity(num_test_dp),Vec::with_capacity(num_test_dp),Vec::with_capacity(num_test_dp),
-        Vec::with_capacity(num_test_dp));  
-
-        // 3. un-roll the data into vectors
-        for (allele_name,allele_data) in  results
-        {
-            for (tissue_name, (mut train_data, mut test_data)) in allele_data
-            {
-                // Prepare the training data
-                //-------------------------- 
-                train_allele_name.append(&mut vec![allele_name.clone();train_data.0.len()]); 
-                train_tissue_name.append(&mut vec![tissue_name.clone();train_data.0.len()]); 
-                train_peptide.append(&mut train_data.0); 
-                train_label.append(&mut train_data.1); 
-                
-                // Prepare the test data
-                //----------------------
-                test_allele_name.append(&mut vec![allele_name.clone();test_data.0.len()]); 
-                test_tissue_name.append(&mut vec![tissue_name.clone();test_data.0.len()]); 
-                test_peptide.append(&mut test_data.0); 
-                test_label.append(&mut test_data.1); 
-            }
-        }
-        // Return the results to the encoder 
-        //----------------------------------
-        (
-            (train_peptide,train_allele_name,train_tissue_name,train_label),
-            (test_peptide,test_allele_name,test_tissue_name,test_label)
-        )
+    // Return the results to the results 
+    //----------------------------------
+    (
+        (train_peptide,train_allele_name,train_tissue_name,train_label),
+        (test_peptide,test_allele_name,test_tissue_name,test_label)
+    )
 }
 
+
+/// ### Summary
+/// Takes the results computed as a hashmap by and rolled int up as train and test vectors
+/// ### Parameters
+/// Results data structure which is structured as follow:
+///     -allele_name<Keys>
+///                 |__HashMap<Keys>
+///                                 |__train_dataset<Tuple>
+///                                 |                |__Sequences<Vec<String>>
+///                                 |                |__Labels<Vec<u8>>
+///                                 |__test_dataset<Tuple>
+///                                                  |__Sequences<Vec<String>>
+///                                                  |__Labels<Vec<u8>>
+/// ### Returns 
+/// Returns a tuple of tuple with the following structure:
+///     I- Train tuples:
+///                    |__train_peptide<Vec<String>>,
+///                    |__train_allele_name<Vec<String>>,
+///                    |__train_tissue_name<Vec<String>>,
+///                    |__train_label<Vec<u8>>
+///     II- Test tuples:
+///                    |__test_peptide<Vec<String>>,
+///                    |__test_allele_name<Vec<String>>,
+///                    |__test_tissue_name<Vec<String>>,
+///                    |__test_label<Vec<u8>>
+#[inline(always)]
+fn generated_rolled_vectors(results:HashMap<String,HashMap<String,((Vec<String>,Vec<u8>),(Vec<String>,Vec<u8>))>>)->(
+    (Vec<String>,Vec<String>,Vec<String>,Vec<u8>),(Vec<String>,Vec<String>,Vec<String>,Vec<u8>))
+{
+    // Unroll the results in to the vector form 
+    //------------------------------------------
+    // 1. get number of train and test data points 
+    let num_train_dp=results.iter()
+        .map(|(_,tissue_data)|
+        {
+            tissue_data.iter().map(|(_,(train_data,_))|train_data.0.len()).sum::<usize>()
+        }) 
+        .sum::<usize>();
+        
+    let num_test_dp=results.iter()
+    .map(|(_,tissue_data)|
+    {
+        tissue_data.iter().map(|(_,(_,test_data))|test_data.0.len()).sum::<usize>()
+    }) 
+    .sum::<usize>(); 
+
+    // 2. allocate vectors to hold the results 
+    let (mut train_peptide, mut train_allele_name, mut train_tissue_name, mut train_label)=(
+        Vec::with_capacity(num_train_dp),Vec::with_capacity(num_train_dp),Vec::with_capacity(num_train_dp),
+    Vec::with_capacity(num_train_dp)); 
+
+    let (mut test_peptide, mut test_allele_name, mut test_tissue_name, mut test_label)=(
+        Vec::with_capacity(num_test_dp),Vec::with_capacity(num_test_dp),Vec::with_capacity(num_test_dp),
+    Vec::with_capacity(num_test_dp));  
+
+    // 3. un-roll the data into vectors
+    for (allele_name,allele_data) in  results
+    {
+        for (tissue_name, (mut train_data, mut test_data)) in allele_data
+        {
+            // Prepare the training data
+            //-------------------------- 
+            train_allele_name.append(&mut vec![allele_name.clone();train_data.0.len()]); 
+            train_tissue_name.append(&mut vec![tissue_name.clone();train_data.0.len()]); 
+            train_peptide.append(&mut train_data.0); 
+            train_label.append(&mut train_data.1); 
+            
+            // Prepare the test data
+            //----------------------
+            test_allele_name.append(&mut vec![allele_name.clone();test_data.0.len()]); 
+            test_tissue_name.append(&mut vec![tissue_name.clone();test_data.0.len()]); 
+            test_peptide.append(&mut test_data.0); 
+            test_label.append(&mut test_data.1); 
+        }
+    }
+    // Return the results
+    //-------------------
+    (
+        (train_peptide,train_allele_name,train_tissue_name,train_label),
+        (test_peptide,test_allele_name,test_tissue_name,test_label)
+    )
+}
+/// ### Summary
+/// Sample from constrained tissue and alleles results, i.e. a list of peptides from a specific allele and a specific tissue 
+/// ### Parameters
+/// target_proteomes: A hashmap of tissue names and proteins names, used to identify target proteins for sampling negative peptides
+/// proteome: A hashmap of protein ID and sequences used to represent the sampling of negative peptides
+/// peptides: A vector of strings representing negative peptides 
+/// test_size: a float in the range (0,1), i.e. bigger than zero and smaller than 1
+/// ### Returns 
+/// A tuple of two tuples representing the train and test dataset respectively
+///     results
+///            |__train_tuple
+///            |             |__ train_sequences<Vec<String>>
+///            |             |__ train_labels<vec<String>>
+///            |__test_tuple
+///                         |__ test_sequence<Vec<String>>
+///                         |__ test_labels<Vec<u8>> 
+#[inline(always)]
+fn sampling_from_constrained_tissue_and_alleles_prelude(target_proteomes:&HashMap<String,Vec<String>>, tissue_name:&String,
+    proteome:&HashMap<String,String>,peptides:&Vec<String>,test_size:f32
+    )->(Vec<(String,String)>, Vec<usize>, Vec<usize>)
+{
+    // Create the target tissue proteome to sample from 
+    //-------------------------------------------------
+    let target_proteins=target_proteomes.get(tissue_name).unwrap();
+    let target_protein_seq=proteome
+            .iter()
+            .filter(|(name,_)|target_proteins.contains(name))
+            .map(|(name,seq)|(name.clone().to_owned(),seq.clone().to_owned()))
+            .collect::<Vec<_>>();
+    
+    // Compute the size of the test dataset 
+    //-------------------------------------
+    let num_positive_dp=peptides.len();
+    let num_test_dp=(num_positive_dp as f32 *test_size) as usize; 
+    // create a random number generator
+    //--------------------- 
+    let mut rng=rand::thread_rng(); 
+    // prepare the train and test indices
+    //-----------------------------------
+    let test_index=(0..num_positive_dp)
+        .choose_multiple(&mut rng, num_test_dp);
+    
+    let train_index=(0..num_positive_dp)
+            .filter(|index|!test_index.contains(index))
+            .collect::<Vec<_>>(); 
+    // return the results
+    //-------------------
+    (target_protein_seq,train_index,test_index)
+}
+/// ### Summary
+/// A prelude function that is used to prepare and set the stage for sampling and encoding the train and test datasets 
+/// ### Parameters 
+/// data_index: Vector of usize representing indices of in the vector of positive peptides, they will return a subset of positive examples,  
+/// e.g. in train and test datasets. 
+/// peptides: A vector of strings representing the whole dataset of positives. 
+/// fold_neg: The amount of negative examples to sample, Xfold the training datasets, where 1 represent a ratio of 1 negative per each positive example while 5 represents  
+///  5 negatives from each positive example. 
+/// target_protein_seq: A vector of protein ids and sequences used for sampling negative sequences
+/// ### Returns
+/// A tuple of two vectors, representing the sequences (both positives and negatives) along with labels (1 or positive and 0 for negatives).
+#[inline(always)]
+fn prepare_dataset_by_proteome_sampling_single_allele_and_tissue(data_index:Vec<usize>, peptides:&Vec<String>, 
+    fold_neg:u32, target_protein_seq:&Vec<(String,String)>)->(Vec<String>,Vec<u8>)
+{
+    //--------------------------
+    // 1. positive peptides 
+    let mut positive_pep=data_index
+        .into_iter()
+        .map(|index|peptides[index].clone())
+        .collect::<Vec<_>>();
+
+    let mut positive_label=vec![1;positive_pep.len()]; 
+    
+    // 2. negative peptides
+    let mut negative_seq=(0..(positive_label.len() as u32 * fold_neg))
+        .into_iter()
+        .map(|_|sample_a_negative_peptide(peptides,target_protein_seq))
+        .collect::<Vec<String>>();
+    
+    let mut negative_label=vec![0;negative_seq.len()]; 
+    
+    // 3. combine the results into a two vectors from sequences and labels
+    let mut seq=Vec::with_capacity(positive_pep.len()+negative_seq.len()); 
+    seq.append(&mut positive_pep); 
+    seq.append(&mut negative_seq); 
+
+    let mut labels=Vec::with_capacity(positive_label.len()+negative_label.len());
+    labels.append(&mut positive_label); 
+    labels.append(&mut negative_label);
+    // return the results 
+    (seq,labels)
+}
 /// ### Summary 
 /// Create a negative database for peptide sampling, the database is build as a hashmap with keys composite of the name of each tissue
 /// and keys made of a vector of strings representing the ids of proteins that can be used for negative sampling from the corresponding tissue. 
@@ -284,7 +353,7 @@ fn create_negative_database_from_positive(proteome:&HashMap<String,String>,
                             {
                                 let negative_proteins=target_table
                                                     .iter()
-                                                    .filter(|(protein_name,protein_info)|protein_info.get_expression()>threshold)
+                                                    .filter(|(_,protein_info)|protein_info.get_expression()>threshold)
                                                     .map(|(protein_name,_)|protein_name.clone())
                                                     .filter(|protein_name|!positive_proteins.contains(protein_name))
                                                     .collect::<Vec<_>>();
@@ -335,15 +404,12 @@ pub fn preparation_prelude(input2prepare:&(Vec<String>,Vec<String>,Vec<String>),
     let database=read_cashed_db(&Path::new(&path2cashed_db)); 
     // load the pseudo_sequences database
     let pseudo_seq_map = read_pseudo_seq(&Path::new(&path2pseudo_seq));
-
     // build a target proteomes to analyze the data 
     let target_proteomes_per_tissue=create_negative_database_from_positive(&proteome,
         &input2prepare,&database,threshold);
-    
     // group the data by alleles & tissue
     //-----------------------------------
     let positives_grouped_by_allele=group_by_allele_and_tissue(&input2prepare); 
-    
     // prepare the test and the training data 
     //---------------------------------------
 

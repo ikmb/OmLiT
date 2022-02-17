@@ -44,7 +44,7 @@ pub fn prepare_data_for_seq_and_expression_data(data_tuple:(Vec<String>/* Peptid
     let (mut peptides, mut pseudo_seq, mut gene_expression, mut labels)=(Vec::with_capacity(num_dp),
     Vec::with_capacity(num_dp), Vec::with_capacity(num_dp), Vec::with_capacity(num_dp)); // iterate over the elements of the array
     // allocate vectors for holding the unmapped data points 
-    let (mut peptides_unmapped, mut pseudo_seq_unmapped, 
+    let (mut peptides_unmapped, mut unmapped_proteins, 
         mut tissue_unmapped, mut labels_unmapped)=(Vec::with_capacity(num_dp),
     Vec::with_capacity(num_dp), Vec::with_capacity(num_dp), Vec::with_capacity(num_dp)); // iterate over the elements of the array
     // Loop over all input data-points
@@ -69,8 +69,8 @@ pub fn prepare_data_for_seq_and_expression_data(data_tuple:(Vec<String>/* Peptid
                         None=>
                         {
                             peptides_unmapped.push(data_tuple.0[idx].clone());
-                            pseudo_seq_unmapped.push(data_tuple.1[idx].clone());
-                            tissue_unmapped.push("UNK_tissue: ".to_string()+data_tuple.2[idx].as_str());
+                            unmapped_proteins.push("UNKNOWN_PROTEINS: ".to_string()+protein);
+                            tissue_unmapped.push(data_tuple.2[idx].clone());
                             labels_unmapped.push(data_tuple.3[idx].clone());
                         }
                     }
@@ -78,8 +78,8 @@ pub fn prepare_data_for_seq_and_expression_data(data_tuple:(Vec<String>/* Peptid
                 None=>
                 {
                     peptides_unmapped.push(data_tuple.0[idx].clone());
-                    pseudo_seq_unmapped.push("UNK_allele: ".to_string()+data_tuple.1[idx].as_str());
-                    tissue_unmapped.push(data_tuple.2[idx].clone());
+                    unmapped_proteins.push(data_tuple.1[idx].clone());
+                    tissue_unmapped.push("UNK_tissue: ".to_string()+data_tuple.2[idx].as_str());
                     labels_unmapped.push(data_tuple.3[idx].clone());
                 }
             }
@@ -96,7 +96,7 @@ pub fn prepare_data_for_seq_and_expression_data(data_tuple:(Vec<String>/* Peptid
     //-------------------
     (
         (encoded_peptide_seq, encoded_pseudo_seq, encoded_gene_expression, encoded_labels),// define the training dataset 
-        (peptides_unmapped, pseudo_seq_unmapped, tissue_unmapped, labels_unmapped)// define the test data sets
+        (peptides_unmapped, unmapped_proteins, tissue_unmapped, labels_unmapped)// define the test data sets
     )
 }
 

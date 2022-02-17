@@ -5,7 +5,7 @@ use ndarray::Dim;
 use numpy::{PyArray, ToPyArray};
 use pyo3::Python;
 use crate::{utils::*, omics_builder::*};
-
+use chrono::Utc;
 /// declare and implement the functions 
 ///------------------------------------
 /// ### Signature
@@ -95,16 +95,17 @@ pub fn generate_train_based_on_seq_exp<'py>(py:Python<'py>,
     )
 {
     // Prepare the prelude for the encoders
+    println!("Loading the prelude ...{}",Utc::now()); 
     //------------------------------------- 
     let (train_data, test_data, pseudo_seq
             ,anno_table)=preparation_prelude(&input2prepare,&proteome,path2cashed_db,path2pseudo_seq,
             threshold,fold_neg,test_size);
-    
+    println!("annotating the train database...{}",Utc::now());
     // encode and prepare the training data
     //-------------------------------------
     let (encoded_train_data,unmapped_train_data)=prepare_data_for_seq_and_expression_data(train_data,
         &pseudo_seq,max_len,&proteome,&anno_table); 
-    
+    println!("annotating the test database...{}",Utc::now());
     let(encoded_test_data,unmapped_test_data)=prepare_data_for_seq_and_expression_data(test_data,
         &pseudo_seq,max_len,&proteome,&anno_table); 
 

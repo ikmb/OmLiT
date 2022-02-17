@@ -161,5 +161,3 @@ positive_index_test=np.asarray(test_dataset[1].reshape(-1) == 1).nonzero()[0]
 train_positive=set([''.join([str(elem) for elem in test_dataset[0][idx,:]]) for idx in positive_index_test])
 train_negative=set([''.join([str(elem) for elem in test_dataset[0][idx,:]]) for idx in range(positive_index_test[-1]+1,test_dataset[0].shape[0],1)])
 assert len(train_positive.intersection(train_negative))==0,ERROR_FOUR
-
-
