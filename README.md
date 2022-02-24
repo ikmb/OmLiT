@@ -1,4 +1,4 @@
-# O-Link
+# OmLiT
 
 A Rust library with a python binder to it. The OLink library is a library used for preparing and encoding multi-omics data for training, retraining, and/or running inferences on peptide HLA-II interactions.
 
