@@ -6,7 +6,7 @@
 """
 ## Load the modules
 #------------------
-import OLink as linker
+import OmLiT as linker
 import numpy as np
 import time
 

@@ -7,7 +7,7 @@
 ## Load the modules
 #------------------
 from tqdm import tqdm 
-import OLink as linker
+import OmLiT as linker
 import numpy as np
 import tensorflow as tf
 import time
@@ -68,5 +68,5 @@ plt.style.use('seaborn-whitegrid')
 ax=sns.lineplot(data=input_table,x='input_size',y='time',hue='Tool Name')
 ax.set_xlabel('Number of peptides')
 ax.set_ylabel('Encoding time (seconds)')
-ax.set_title('Execution time of OLink Vs. TensorFlow',loc='left')
+ax.set_title('Execution time of OmLiT Vs. TensorFlow',loc='left')
 plt.savefig('execution_time_O_LINK_vs_TF.png',dpi=1200)

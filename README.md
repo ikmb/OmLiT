@@ -1,6 +1,6 @@
 # OmLiT
 
-A Rust library with a python binder to it. The OLink library is a library used for preparing and encoding multi-omics data for training, retraining, and/or running inferences on peptide HLA-II interactions.
+A Rust library with a python binder to it. The OmLiT library is a library used for preparing and encoding multi-omics data for training, retraining, and/or running inferences on peptide HLA-II interactions.
 
 ## Aim
 
@@ -57,13 +57,13 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 2. clone the directory locally
 
 ```bash
-git clone https://github.com/ikmb/O-Link-
+git clone https://github.com/ikmb/OmLiT
 ```
 
 3. Create a new conda environment and active it
 
 ```bash
-conda create -n o_link -y && conda activate o_link
+conda create -n omlit -y && conda activate omlit
 ```
 
 4. install maturin
@@ -75,15 +75,15 @@ pip install maturin
 5. build the code
 
 ```bash
-cd O-Link- && maturin develop --release 
+cd OmLiT && maturin develop --release 
 ```
 
 6. Load the library into Python and start working
 
 ```python
 
-from OLink import * # load all the function // otherwise we can use
-import OLink as linker # e.g. to have have a clean name space
+from OmLiT import * # load all the function // otherwise we can use
+import OmLiT as linker # e.g. to have have a clean name space
 ?generate_train_based_on_seq_exp_subcell # print help message about a specific functions 
 ```
 

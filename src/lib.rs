@@ -66,7 +66,7 @@ use crate::pyhelper::*;
 // add functions to the Py Module
 
 #[pymodule]
-fn OLink(_py: Python, m: &PyModule) -> PyResult<()> 
+fn OmLiT(_py: Python, m: &PyModule) -> PyResult<()> 
 {
     m.add_function(wrap_pyfunction!(generate_train_ds_shuffling_sm, m)?)?;
     m.add_function(wrap_pyfunction!(generate_a_train_arrays_by_shuffling, m)?)?;

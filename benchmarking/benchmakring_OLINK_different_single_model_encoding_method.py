@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np 
 import matplotlib.pyplot as plt 
 import matplotlib.gridspec as gridspec 
-import OLink as linker 
+import OmLiT as linker 
 from Bio import SeqIO
 ## loading and recording the time of different datasets 
 #------------------------------------------------------

@@ -33,7 +33,7 @@ pub fn prepare_train_ds_shuffling(positive_examples:&Vec<String>,fold_neg:u32,te
     // Prepare and sample the dataset 
     //-------------------------------
     let train_database=generate_a_train_db_by_shuffling_rs(train_seq,fold_neg);
-    let test_database=generate_a_train_db_by_shuffling_rs(test_seq,fold_neg); 
+    let test_database=generate_a_train_db_by_shuffling_rs(test_seq,1); 
     
     // clean the results from overlaps 
     //-------------------
@@ -89,7 +89,7 @@ pub fn prepare_train_ds_proteome_sampling(positive_examples:&Vec<String>,proteom
     // Prepare and sample the dataset 
     //-------------------------------
     let train_database=generate_negative_by_sampling_rs(train_seq,&target_proteome,fold_neg);
-    let test_database=generate_negative_by_sampling_rs(test_seq,&target_proteome,fold_neg); 
+    let test_database=generate_negative_by_sampling_rs(test_seq,&target_proteome,1); 
 
     // clean the results from overlaps 
     //-------------------
@@ -149,7 +149,7 @@ pub fn prepare_train_ds_same_protein_sampling(positive_examples:&Vec<String>,pro
     // Prepare and sample the dataset 
     //-------------------------------
     let train_database=generate_negative_by_sampling_rs(train_seq,&target_proteome,fold_neg); 
-    let test_database=generate_negative_by_sampling_rs(test_seq,&target_proteome,fold_neg);
+    let test_database=generate_negative_by_sampling_rs(test_seq,&target_proteome,1);
 
     // clean the results from overlaps 
     //-------------------
@@ -237,7 +237,7 @@ pub fn prepare_train_ds_expressed_protein_sampling(positive_examples:&Vec<String
     // Prepare and sample the dataset 
     //-------------------------------
     let test_database=generate_negative_by_sampling_rs(test_seq,&target_proteome,fold_neg);
-    let train_database=generate_negative_by_sampling_rs(train_seq,&target_proteome,fold_neg); 
+    let train_database=generate_negative_by_sampling_rs(train_seq,&target_proteome,1); 
     
     // clean the results from overlaps 
     //-------------------

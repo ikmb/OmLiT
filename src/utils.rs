@@ -75,7 +75,7 @@ pub fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<St
                         train_index,&peptides,fold_neg,&target_protein_seq); 
                     
                     let test_database=prepare_dataset_by_proteome_sampling_single_allele_and_tissue(
-                        test_index,&peptides,fold_neg,&target_protein_seq); 
+                        test_index,&peptides,1,&target_protein_seq); 
                     
                     // remove overlaps between train and test labels
                     //----------------------------------------------
