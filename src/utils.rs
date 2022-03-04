@@ -110,6 +110,60 @@ pub fn sample_negatives_from_positive_data_structure(group_by_alleles:HashMap<St
     )
 }
 
+/// ### Summary 
+/// The function is used to generate a dataset of positive and negative from a collection of positive peptides. 
+/// ### Parameter 
+///  group_by_alleles: A nested hashmap with the following structure:
+///                                                     Allele name:
+///                                                               |__ Tissue name (Key) --> peptides <Vec<String>> A vector of peptides sequences (Values). 
+///  target_proteomes: A nested HashMap representing the negative proteins, from which negative sampling shall take place (i.e. negative sampling )
+///  fold_neg: The amount of negative examples to sample, Xfold the training datasets, where 1 represent a ratio of 1 negative per each positive example while 5 represents  
+///  5 negatives from each positive example. 
+///  proteome: the reference proteome, which is a hashmap of protein names linked with protein sequences
+/// 
+/// ### Return 
+/// The function returns a tuple 4 elements structured as follow
+///     a. A vector of strings representing peptide sequence 
+///     b. A vector of strings representing allele names 
+///     c. A vector of strings representing tissue names            
+///     d. A vector of integers (u8) representing the labels of each peptide, 1 represent binder and 0 represent non-binders 
+pub(crate) fn sample_negatives_from_positive_data_structure_no_test_split(group_by_alleles:HashMap<String,HashMap<String,Vec<String>>>,
+    target_proteomes:&HashMap<String,Vec<String>>, fold_neg:u32, proteome:&HashMap<String,String>
+    )->(Vec<String>/* peptide */, Vec<String>/* allele name */, Vec<String>/* tissue name */, Vec<u8> /* label*/)
+{
+    // Compute the size of the test dataset 
+    //-------------------------------------
+    let results:HashMap<String,HashMap<_,_>>=group_by_alleles
+        .into_par_iter()
+        .map(|(allele_name,tissue_to_peptides)|
+        {
+            let results_from_all_tissues=tissue_to_peptides
+                .into_iter()
+                .map(|(tissue_name,peptides)|
+                {
+                    // Load the prelude
+                    //-----------------
+                    let target_proteins=target_proteomes.get(&tissue_name).unwrap();
+                    let target_protein_seq=proteome
+                            .iter()
+                            .filter(|(name,_)|target_proteins.contains(name))
+                            .map(|(name,seq)|(name.clone().to_owned(),seq.clone().to_owned()))
+                            .collect::<Vec<_>>();
+                    let positive_and_negatives_per_sample=prepare_dataset_by_proteome_sampling_single_allele_and_tissue_no_test(
+                    peptides, fold_neg,&target_protein_seq);
+                    // Return the output
+                    //------------------ 
+                    (tissue_name,positive_and_negatives_per_sample)
+                })
+                .collect::<HashMap<String/* tissue name*/,(Vec<String> /* peptide sequences*/,Vec<u8>/* peptide labels*/)>>(); 
+                (allele_name.to_string(),results_from_all_tissues)
+        })
+        .collect::<HashMap<String/*allele name*/,HashMap<String/* tissue name*/,(Vec<String> /* peptide sequences*/,Vec<u8>/* peptide labels*/)>>>();
+        
+    // Unrolling and returning the results
+    //------------------------------------
+    generated_rolled_vectors_no_test(results)
+}
 
 /// ### Summary
 /// Takes the results computed as a hashmap by and rolled int up as train and test vectors
@@ -192,6 +246,73 @@ fn generated_rolled_vectors(results:HashMap<String,HashMap<String,((Vec<String>,
         (test_peptide,test_allele_name,test_tissue_name,test_label)
     )
 }
+
+/// ### Summary
+/// Takes the results computed as a hashmap by and rolled int up as train and test vectors
+/// ### Parameters
+/// Results data structure which is structured as follow:
+///     -allele_name<Keys>
+///                 |__HashMap<Keys>
+///                                 |__train_dataset<Tuple>
+///                                 |                |__Sequences<Vec<String>>
+///                                 |                |__Labels<Vec<u8>>
+///                                 |__test_dataset<Tuple>
+///                                                  |__Sequences<Vec<String>>
+///                                                  |__Labels<Vec<u8>>
+/// ### Returns 
+/// Returns a tuple of tuple with the following structure:
+///     I- Train tuples:
+///                    |__train_peptide<Vec<String>>,
+///                    |__train_allele_name<Vec<String>>,
+///                    |__train_tissue_name<Vec<String>>,
+///                    |__train_label<Vec<u8>>
+///     II- Test tuples:
+///                    |__test_peptide<Vec<String>>,
+///                    |__test_allele_name<Vec<String>>,
+///                    |__test_tissue_name<Vec<String>>,
+///                    |__test_label<Vec<u8>>
+#[inline(always)]
+fn generated_rolled_vectors_no_test(results:HashMap<String/*allele name*/,HashMap<String/* tissue name*/,(Vec<String> /* peptide sequences*/,Vec<u8>/* peptide labels*/)>>)->(
+    Vec<String> /* peptide sequence*/, Vec<String>/* Allele name*/, Vec<String> /* tissue name*/,  Vec<u8>/* the label*/)
+{
+    // 1. Gets the total number of data points in the array 
+    //-----------------------------------------------------
+    let num_dp=results.iter()
+        .map(|(_,tissue_data)|
+        {
+            tissue_data.iter().map(|(_,peptides)|peptides.0.len()).sum::<usize>()
+        }) 
+        .sum::<usize>();
+        
+    // 2. allocate vectors to hold the results 
+    let (mut allele_names, mut tissue_names, 
+        mut peptides, mut label)=(
+        Vec::with_capacity(num_dp),Vec::with_capacity(num_dp),Vec::with_capacity(num_dp),
+    Vec::with_capacity(num_dp)); 
+
+   
+    // 3. un-roll the data into vectors
+    for (allele_name,allele_data) in  results
+    {
+        for (tissue_name, (mut seqs, mut labels)) in allele_data
+        {
+            // Prepare the training data
+            //-------------------------- 
+            allele_names.append(&mut vec![allele_name.clone();seqs.len()]); 
+            tissue_names.append(&mut vec![tissue_name.clone();seqs.len()]); 
+            peptides.append(&mut seqs); 
+            label.append(&mut labels); 
+        }
+    }
+    // Return the results
+    //-------------------
+    (peptides /* vector of peptide sequences*/, allele_names/* alleles names*/, tissue_names/* Tissue names*/, label /* Peptide label*/)
+}
+
+
+
+
+
 /// ### Summary
 /// Sample from constrained tissue and alleles results, i.e. a list of peptides from a specific allele and a specific tissue 
 /// ### Parameters
@@ -210,7 +331,7 @@ fn generated_rolled_vectors(results:HashMap<String,HashMap<String,((Vec<String>,
 ///                         |__ test_labels<Vec<u8>> 
 #[inline(always)]
 fn sampling_from_constrained_tissue_and_alleles_prelude(target_proteomes:&HashMap<String,Vec<String>>, tissue_name:&String,
-    proteome:&HashMap<String,String>,peptides:&Vec<String>,test_size:f32
+    proteome:&HashMap<String,String>, peptides:&Vec<String>, test_size:f32
     )->(Vec<(String,String)>, Vec<usize>, Vec<usize>)
 {
     // Create the target tissue proteome to sample from 
@@ -241,6 +362,7 @@ fn sampling_from_constrained_tissue_and_alleles_prelude(target_proteomes:&HashMa
     //-------------------
     (target_protein_seq,train_index,test_index)
 }
+
 /// ### Summary
 /// A prelude function that is used to prepare and set the stage for sampling and encoding the train and test datasets 
 /// ### Parameters 
@@ -284,6 +406,55 @@ fn prepare_dataset_by_proteome_sampling_single_allele_and_tissue(data_index:Vec<
     // return the results 
     (seq,labels)
 }
+
+
+
+
+
+#[inline(always)]
+fn prepare_dataset_by_proteome_sampling_single_allele_and_tissue_no_test(mut positive_peptides:Vec<String>, 
+    fold_neg:u32, target_protein_seq:&Vec<(String,String)>)->(Vec<String>,Vec<u8>)
+{
+    
+    let mut positive_label=vec![1;positive_peptides.len()]; 
+    
+    // 2. negative peptides
+    let mut negative_seq=(0..(positive_label.len() as u32 * fold_neg))
+        .into_iter()
+        .map(|_|sample_a_negative_peptide(&positive_peptides,target_protein_seq))
+        .collect::<Vec<String>>();
+    
+    let mut negative_label=vec![0;negative_seq.len()]; 
+    
+    // 3. combine the results into a two vectors from sequences and labels
+    let mut seq=Vec::with_capacity(positive_peptides.len()+negative_seq.len()); 
+    seq.append(&mut positive_peptides); 
+    seq.append(&mut negative_seq); 
+
+    let mut labels=Vec::with_capacity(positive_label.len()+negative_label.len());
+    labels.append(&mut positive_label); 
+    labels.append(&mut negative_label);
+    // return the results 
+    (seq,labels)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /// ### Summary 
 /// Create a negative database for peptide sampling, the database is build as a hashmap with keys composite of the name of each tissue
 /// and keys made of a vector of strings representing the ids of proteins that can be used for negative sampling from the corresponding tissue. 
@@ -299,7 +470,7 @@ fn prepare_dataset_by_proteome_sampling_single_allele_and_tissue(data_index:Vec<
 /// threshold: A float representing the minimum gene expression level to considered a gene as expressed.    
 /// ### Returns: 
 ///  A hashmap of tissue names along with a vector of protein ids which shall be used for generating the negatives. 
-fn create_negative_database_from_positive(proteome:&HashMap<String,String>, 
+pub(crate) fn create_negative_database_from_positive(proteome:&HashMap<String,String>, 
     input2prepare:&(Vec<String>,Vec<String>,Vec<String>), 
     anno_table:&HashMap<String, HashMap<String, ProteinInfo>>,
     threshold:f32)->HashMap<String,Vec<String>>
@@ -432,7 +603,7 @@ pub fn preparation_prelude(input2prepare:&(Vec<String>,Vec<String>,Vec<String>),
 ///                                                               |__ Tissue name (Key) --> peptides <Vec<String>> A vector of peptides sequences (Values). 
 /// 
 #[inline(always)]
-fn group_by_allele_and_tissue(input2prepare:&(Vec<String>,Vec<String>,Vec<String>),)->HashMap<String,HashMap<String,Vec<String>>>
+pub(crate) fn group_by_allele_and_tissue(input2prepare:&(Vec<String>,Vec<String>,Vec<String>),)->HashMap<String,HashMap<String,Vec<String>>>
 {
     // Check that the input is valid 
     if input2prepare.0.len()!=input2prepare.1.len() || input2prepare.0.len()!=input2prepare.2.len()

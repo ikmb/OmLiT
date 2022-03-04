@@ -57,11 +57,13 @@ pub mod constants;
 pub mod omics_builder; 
 pub mod sequence_builder; 
 pub mod pyhelper;
+pub mod inference_engine; 
 
 // Import the python wrappers
 use crate::train_mo_model::*;
 use crate::train_seq_only::*; 
 use crate::pyhelper::*; 
+use crate::inference_engine::*; 
 
 // add functions to the Py Module
 
@@ -85,6 +87,8 @@ fn OmLiT(_py: Python, m: &PyModule) -> PyResult<()>
     m.add_function(wrap_pyfunction!(group_peptide_by_protein, m)?)?;
     m.add_function(wrap_pyfunction!(group_by_9mers, m)?)?;
     m.add_function(wrap_pyfunction!(encode_sequence, m)?)?;
+    m.add_function(wrap_pyfunction!(encode_sequences,m)?);
+    m.add_function(wrap_pyfunction!(sample_negatives_from_positives_no_test,m)?); 
 
     Ok(())
 }

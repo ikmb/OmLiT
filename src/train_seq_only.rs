@@ -6,16 +6,12 @@ use pyo3::prelude::*;
 use ndarray::{Dim, Array};
 use numpy::{PyArray, ToPyArray};
 use rand::prelude::IteratorRandom;
-use rayon::iter::IntoParallelIterator;
-use crate::peptides::{group_by_9mers_rs,generate_a_train_db_by_shuffling_rs,encode_sequence_rs};
+use crate::peptides::{generate_a_train_db_by_shuffling_rs,encode_sequence_rs};
 use crate::sequence_builder::{prepare_train_ds_proteome_sampling, prepare_train_ds_same_protein_sampling, prepare_train_ds_shuffling, prepare_train_ds_expressed_protein_sampling}; 
 use rand;
-use rand::seq::SliceRandom;
-use std::collections::HashSet;
 use std::path::Path;
 use std::collections::HashMap;
 use crate::utils::*; 
-use rayon::prelude::*; 
 
 
 /// ### Signature

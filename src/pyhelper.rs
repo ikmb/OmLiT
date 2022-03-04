@@ -5,8 +5,9 @@ use ndarray::Dim;
 use numpy::{PyArray, ToPyArray};
 use pyo3::{pyfunction, PyResult, Python};
 use crate::{peptides::{generate_a_train_db_by_shuffling_rs, group_peptides_by_parent_rs, group_by_9mers_rs, encode_sequence_rs}, 
-            functions::{annotate_all_proteins_in_one_tissue, cash_database_to_disk}
+            functions::{annotate_all_proteins_in_one_tissue, cash_database_to_disk, read_cashed_db}, utils::{create_negative_database_from_positive, group_by_allele_and_tissue, sample_negatives_from_positive_data_structure_no_test_split}
         };
+
 //-----------------------------------------|
 // declaring and implementing the functions| 
 //-----------------------------------------|
@@ -155,4 +156,42 @@ fn generate_a_train_db_by_shuffling(positive_examples:Vec<String>, fold_neg:u32)
 fn encode_sequence<'py>(py:Python<'py>,seq:Vec<String>,max_len:usize)->&'py PyArray<u8,Dim<[usize;2]>>
 {
     encode_sequence_rs(seq,max_len).to_pyarray(py)
+}
+
+/// ### Signature
+/// sample_negatives_from_positives_no_test(input: Tuple[
+///                                                     List[str], # Input list of Peptides
+///                                                     List[str], # Input list of Allele names
+///                                                     List[str], # Input list of Tissue names 
+///                                                     ],
+///                                         proteome: Dict[str,str], # A Lookup table of protein to peptide names,
+///                                         path2cashed_bd: str, # The path to a cashed database
+///                                         fold_neg: int, # The ratio of negative to positives,
+///                                         threshold:f32, # the minimum expression level needed, for generating the negatives              
+///                                                 )->Tuple[
+///                                                 List[str], # generated peptides
+///                                                 List[str], # allele names,
+///                                                 List[str], # tissue names,
+///                                                 List[str], # label for each peptide, {1:binder, 0:non_binder}
+///                                             ])
+/// ### Summary
+/// The function samples negative and return the original and the sampled negative as a one tuple, see signature above for more details. 
+/// ### ---------
+#[pyfunction]
+fn sample_negatives_from_positives_no_test(input:(Vec<String>,Vec<String>,Vec<String>), 
+    proteome:HashMap<String,String>, path2cashed_db:String, fold_neg:u32, threshold:f32)->(Vec<String>/* peptide */, 
+        Vec<String>/* allele name */, Vec<String>/* tissue name */, Vec<u8> /* label*/)
+{
+    // Load the cashed database 
+    let database=read_cashed_db(&Path::new(&path2cashed_db)); 
+    // load the pseudo_sequences database
+    // build a target proteomes to analyze the data 
+    let target_proteomes_per_tissue=create_negative_database_from_positive(&proteome,
+        &input,&database,threshold);
+    // group the data by alleles & tissue
+    //-----------------------------------
+    let positives_grouped_by_allele=group_by_allele_and_tissue(&input); 
+    // Return the results
+    //-------------------
+    sample_negatives_from_positive_data_structure_no_test_split(positives_grouped_by_allele, &target_proteomes_per_tissue, fold_neg,&proteome)
 }
