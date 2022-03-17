@@ -80,7 +80,7 @@ pub fn generate_train_based_on_seq_exp<'py>(py:Python<'py>,
         input2prepare:(Vec<String>,Vec<String>,Vec<String>),
                     proteome:HashMap<String,String>, path2cashed_db:String, 
                     path2pseudo_seq:String, max_len:usize,
-        threshold:f32, fold_neg:u32, test_size:f32
+        threshold:f32, fold_neg:u32, test_size:f32,only_one_parent_per_peptide:bool
     )->(
         /* Train Tensors */
         (&'py PyArray<u8,Dim<[usize;2]>> /*Train pseudo-seq*/, &'py PyArray<u8,Dim<[usize;2]>> /*Train encoded sequence */,
@@ -104,10 +104,10 @@ pub fn generate_train_based_on_seq_exp<'py>(py:Python<'py>,
     // encode and prepare the training data
     //-------------------------------------
     let (encoded_train_data,unmapped_train_data)=prepare_data_for_seq_and_expression_data(train_data,
-        &pseudo_seq,max_len,&proteome,&anno_table); 
+        &pseudo_seq,max_len,&proteome,&anno_table,only_one_parent_per_peptide); 
     println!("annotating the test database...{}",Utc::now());
     let(encoded_test_data,unmapped_test_data)=prepare_data_for_seq_and_expression_data(test_data,
-        &pseudo_seq,max_len,&proteome,&anno_table); 
+        &pseudo_seq,max_len,&proteome,&anno_table,only_one_parent_per_peptide); 
 
     //return the results
     //------------------
@@ -192,7 +192,8 @@ pub fn generate_train_based_on_seq_exp_subcell<'py>(py:Python<'py>,
 input2prepare:(Vec<String>,Vec<String>,Vec<String>),
             proteome:HashMap<String,String>, path2cashed_db:String, 
             path2pseudo_seq:String, max_len:usize,
-            threshold:f32, fold_neg:u32, test_size:f32
+            threshold:f32, fold_neg:u32, test_size:f32,
+            only_one_parent_per_peptide:bool
     )->(
         (&'py PyArray<u8,Dim<[usize;2]>> /*Train pseudo-seq*/, &'py PyArray<u8,Dim<[usize;2]>> /*Train encoded sequence */,
          &'py PyArray<f32,Dim<[usize;2]>> /*Train expression values*/, &'py PyArray<u8,Dim<[usize;2]>> /*Train sub-cellular location values*/,
@@ -217,10 +218,10 @@ input2prepare:(Vec<String>,Vec<String>,Vec<String>),
     //-------------------------------------
     println!("annotating the train database...{}",Utc::now());
     let (encoded_train_data,unmapped_train_data)=prepare_data_for_seq_exp_and_subcellular_data(train_data,
-        &pseudo_seq,max_len,&proteome,&anno_table); 
+        &pseudo_seq,max_len,&proteome,&anno_table,only_one_parent_per_peptide); 
     println!("annotating the test database...{}",Utc::now());
     let(encoded_test_data,unmapped_test_data)=prepare_data_for_seq_exp_and_subcellular_data(test_data,
-        &pseudo_seq,max_len,&proteome,&anno_table); 
+        &pseudo_seq,max_len,&proteome,&anno_table,only_one_parent_per_peptide); 
 
     //return the results
     //------------------
@@ -308,7 +309,8 @@ pub fn generate_train_based_on_seq_exp_subcell_context<'py>(py:Python<'py>,
         input2prepare:(Vec<String>,Vec<String>,Vec<String>),
         proteome:HashMap<String,String>, path2cashed_db:String, 
         path2pseudo_seq:String, max_len:usize,threshold:f32,
-        fold_neg:u32, test_size:f32
+        fold_neg:u32, test_size:f32,
+        only_one_parent_per_peptide:bool
     )->(
         (&'py PyArray<u8,Dim<[usize;2]>> /*Train pseudo-seq*/, &'py PyArray<u8,Dim<[usize;2]>> /*Train encoded sequence */,
          &'py PyArray<f32,Dim<[usize;2]>> /*Train expression values*/, &'py PyArray<u8,Dim<[usize;2]>> /*Train sub-cellular location values*/,
@@ -334,11 +336,11 @@ pub fn generate_train_based_on_seq_exp_subcell_context<'py>(py:Python<'py>,
     //-------------------------------------
     println!("annotating the train database...{}",Utc::now());
     let (encoded_train_data,unmapped_train_data)=prepare_data_for_seq_exp_subcellular_and_context_data(train_data,
-        &pseudo_seq,max_len,&proteome,&anno_table); 
+        &pseudo_seq,max_len,&proteome,&anno_table,only_one_parent_per_peptide); 
     
     println!("annotating the test database...{}",Utc::now());
     let(encoded_test_data,unmapped_test_data)=prepare_data_for_seq_exp_subcellular_and_context_data(test_data,
-        &pseudo_seq,max_len,&proteome,&anno_table); 
+        &pseudo_seq,max_len,&proteome,&anno_table,only_one_parent_per_peptide); 
 
     //return the results
     //------------------
@@ -348,7 +350,6 @@ pub fn generate_train_based_on_seq_exp_subcell_context<'py>(py:Python<'py>,
         unmapped_train_data,
         unmapped_test_data
     )
-
 }
 
 /// ### Signature
@@ -430,7 +431,8 @@ pub fn generate_train_based_on_seq_exp_subcell_loc_context_d2g<'py>(py:Python<'p
             input2prepare:(Vec<String>,Vec<String>,Vec<String>),
             proteome:HashMap<String,String>, path2cashed_db:String, 
             path2pseudo_seq:String, max_len:usize,
-            threshold:f32, fold_neg:u32, test_size:f32
+            threshold:f32, fold_neg:u32, test_size:f32,
+            only_one_parent_per_peptide:bool
     )->(
         (&'py PyArray<u8,Dim<[usize;2]>> /*Train peptide sequences*/, &'py PyArray<u8,Dim<[usize;2]>> /*Train pseudo-sequences*/,
          &'py PyArray<f32,Dim<[usize;2]>> /*Train expression values*/, &'py PyArray<u8,Dim<[usize;2]>> /*Train sub-cellular location values*/,
@@ -442,8 +444,8 @@ pub fn generate_train_based_on_seq_exp_subcell_loc_context_d2g<'py>(py:Python<'p
         &'py PyArray<f32,Dim<[usize;2]>> /*Test context vectors*/,&'py PyArray<u32,Dim<[usize;2]>> /*Test distance to glycosylation*/,
         &'py PyArray<u8,Dim<[usize;2]>> /* Test labels */), 
 
-        (Vec<String>,Vec<String>,Vec<String>, Vec<u8>),// unmapped train data points 
-        (Vec<String>,Vec<String>,Vec<String>, Vec<u8>) // unmapped test data points
+        (Vec<String>,Vec<String>,Vec<String>, Vec<u8>, Vec<usize>),// unmapped train data points 
+        (Vec<String>,Vec<String>,Vec<String>, Vec<u8>, Vec<usize>) // unmapped test data points
     )
 {
     // Prepare the prelude for the encoders
@@ -457,10 +459,10 @@ pub fn generate_train_based_on_seq_exp_subcell_loc_context_d2g<'py>(py:Python<'p
     //-------------------------------------
     println!("annotating the train database...{}",Utc::now());
     let (encoded_train_data,unmapped_train_data)=prepare_data_for_seq_exp_subcellular_context_d2g_data(train_data,
-        &pseudo_seq,max_len,&proteome,&anno_table); 
+        &pseudo_seq,max_len,&proteome,&anno_table, only_one_parent_per_peptide); 
     println!("annotating the test database...{}",Utc::now());
     let(encoded_test_data,unmapped_test_data)=prepare_data_for_seq_exp_subcellular_context_d2g_data(test_data,
-        &pseudo_seq,max_len,&proteome,&anno_table); 
+        &pseudo_seq,max_len,&proteome,&anno_table, only_one_parent_per_peptide); 
     
     //return the results
     //------------------

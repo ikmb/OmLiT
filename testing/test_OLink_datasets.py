@@ -18,8 +18,6 @@ INPUT_TABLE='/Users/heshamelabd/projects/RustDB/datasets/BA_database.tsv'
 TEST_SIZE=0.2
 MAX_LEN=21
 
-
-
 ## Test the reading and parsing of the Q models 
 #----------------------------------------------
 try:

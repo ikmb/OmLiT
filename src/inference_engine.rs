@@ -6,7 +6,7 @@ use ndarray::Dim;
 use numpy::{PyArray, ToPyArray};
 use pyo3::prelude::*;
 
-use crate::{peptides::encode_sequence_rs, functions::read_cashed_db, utils::{read_pseudo_seq}, omics_builder::prepare_data_for_seq_exp_subcellular_context_d2g_data}; 
+use crate::{peptides::encode_sequence_rs, functions::read_cashed_db, utils::{read_pseudo_seq}, omics_builder::{prepare_data_for_seq_exp_subcellular_context_d2g_data, prepare_data_for_seq_exp_subcellular_context_d2g_data_no_label}}; 
 
 /// ### Signature 
 /// Encode_sequences(input_seq:List[str],max_len:usize)->np.ndarray
@@ -37,7 +37,8 @@ pub fn encode_sequences<'py>(py:Python<'py>,
 ///                                     )->Tuple[
 ///                                         Tuple[
 ///                                             np.ndarray[None,max_len] # encoded peptide sequences,
-///                                             np.ndarray[None,34] # encoded protein sequences,
+///                                             np.ndarray[None,34] # encoded HLA pseudo-sequences,
+///                                             np.ndarray[None,f32] # the encoded gene expression database,
 ///                                             np.ndarray[None,1049]# encoded subcellular locations,
 ///                                             np.ndarray[None,16_519] # the context vector,
 ///                                             np.ndarray[None,1] # the distance to the nearest glycosylation site
@@ -60,23 +61,24 @@ pub fn annotate_and_encode_input_sequences<'py>(py:Python<'py>,
     proteome:HashMap<String,String>,
     path2cashed_db:String,
     path2pseudo_seq:String,
+    only_one_parent_per_peptide:bool
 )->(
         (&'py PyArray<u8,Dim<[usize;2]>> /* Peptide sequences*/, &'py PyArray<u8,Dim<[usize;2]>> /*Pseudo-sequences*/,
          &'py PyArray<f32,Dim<[usize;2]>> /* Expression values*/, &'py PyArray<u8,Dim<[usize;2]>> /*Sub-cellular location values*/,
          &'py PyArray<f32,Dim<[usize;2]>> /* Context vectors*/, &'py PyArray<u32,Dim<[usize;2]>> /*Distance to glycosylation*/,
          &'py PyArray<u8,Dim<[usize;2]>> /* Labels */),
-        (Vec<String>/* Peptides*/, Vec<String>/*Alleles*/,Vec<String>/*Tissue names*/, Vec<u8>/*Labels*/)// unmapped train data points 
+        (Vec<String>/* Peptides*/, Vec<String>/*Alleles*/,Vec<String>/*Tissue names*/, Vec<u8>/*Labels*/,  Vec<usize> /* The index of un mapped indices*/)// unmapped train data points 
     )
 {
     // Load the cashed database
-    println!("Loading the annotation and Pseudo Sequence database ... {}",Utc::now());  
+    //println!("Loading the annotation and Pseudo Sequence database ... {}",Utc::now());  
     let database=read_cashed_db(&Path::new(&path2cashed_db));
     let pseudo_seq_map = read_pseudo_seq(&Path::new(&path2pseudo_seq));
     
     // Build a target proteomes to analyze the data 
-    println!("Annotating {} data points starting at ... {}",input.0.len(),Utc::now()); 
+    //println!("Annotating {} data points starting at ... {}",input.0.len(),Utc::now()); 
     let (encoded_results, unmapped_results)=prepare_data_for_seq_exp_subcellular_context_d2g_data(input,
-        &pseudo_seq_map,max_len,&proteome,&database); 
+        &pseudo_seq_map,max_len,&proteome,&database,only_one_parent_per_peptide); 
     
     // preparing input arrays ...
     //---------------------------
@@ -86,6 +88,44 @@ pub fn annotate_and_encode_input_sequences<'py>(py:Python<'py>,
         encoded_results.2.to_pyarray(py),encoded_results.3.to_pyarray(py),
         encoded_results.4.to_pyarray(py),encoded_results.5.to_pyarray(py),
         encoded_results.6.to_pyarray(py)),
+        /* Generate the unmapped arrays*/
+        unmapped_results
+    ) 
+}
+
+
+#[pyfunction]
+pub fn annotate_and_encode_input_sequences_no_label<'py>(py:Python<'py>, 
+    input:(Vec<String>/* List of peptides*/,Vec<String> /*List of alleles*/,Vec<String> /*list of tissue names*/),
+    max_len:usize,
+    proteome:HashMap<String,String>,
+    path2cashed_db:String,
+    path2pseudo_seq:String,
+    only_one_parent_per_peptide:bool
+)->(
+        (&'py PyArray<u8,Dim<[usize;2]>> /* Peptide sequences*/, &'py PyArray<u8,Dim<[usize;2]>> /*Pseudo-sequences*/,
+         &'py PyArray<f32,Dim<[usize;2]>> /* Expression values*/, &'py PyArray<u8,Dim<[usize;2]>> /*Sub-cellular location values*/,
+         &'py PyArray<f32,Dim<[usize;2]>> /* Context vectors*/, &'py PyArray<u32,Dim<[usize;2]>> /*Distance to glycosylation*/),
+        (Vec<String>/* Peptides*/, Vec<String>/*Alleles*/,Vec<String>/*Tissue names*/, Vec<usize> /* The index of un mapped indices*/)// unmapped train data points 
+    )
+{
+    // Load the cashed database
+    //println!("Loading the annotation and Pseudo Sequence database ... {}",Utc::now());  
+    let database=read_cashed_db(&Path::new(&path2cashed_db));
+    let pseudo_seq_map = read_pseudo_seq(&Path::new(&path2pseudo_seq));
+    
+    // Build a target proteomes to analyze the data 
+    //println!("Annotating {} data points starting at ... {}",input.0.len(),Utc::now()); 
+    let (encoded_results, unmapped_results)=prepare_data_for_seq_exp_subcellular_context_d2g_data_no_label(input,
+        &pseudo_seq_map,max_len,&proteome,&database,only_one_parent_per_peptide); 
+    
+    // preparing input arrays ...
+    //---------------------------
+    (
+        /* Generate the mapped arrays*/
+        (encoded_results.0.to_pyarray(py),encoded_results.1.to_pyarray(py),
+        encoded_results.2.to_pyarray(py),encoded_results.3.to_pyarray(py),
+        encoded_results.4.to_pyarray(py),encoded_results.5.to_pyarray(py)),
         /* Generate the unmapped arrays*/
         unmapped_results
     ) 

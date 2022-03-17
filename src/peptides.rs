@@ -41,6 +41,7 @@ pub fn group_peptides_by_parent_rs(peptides:&Vec<String>,proteome:&HashMap<Strin
             .collect::<Vec<_>>();
             (peptide.clone(),parent)
         })
+    .filter(|(_,vec)| vec.len()!=0) // remove peptides that are not in the database
     .collect::<HashMap<_,_>>()
 }
 
@@ -89,7 +90,7 @@ pub fn sample_a_negative_peptide(positive_peptides:&Vec<String>,proteome_as_vec:
     }
     // sample the length first
     let mut peptide_length= normal.sample(&mut rand::thread_rng()) as usize ; // sample the peptide length from a normal distribution 
-    peptide_length=std::cmp::min(21,std::cmp::max(9,peptide_length)); // clip the peptide length to be between [9,21]
+    peptide_length=std::cmp::min(21,std::cmp::max(13,peptide_length)); // clip the peptide length to be between [9,21]
     let position_in_backbone=position_sampler.gen_range(0..target_protein.1.len()-(peptide_length+1)); // sample the position in the protein backbone 
     let sampled_peptide=target_protein.1[position_in_backbone..position_in_backbone+peptide_length].to_string();
     // check that the peptide is not in positive peptides 

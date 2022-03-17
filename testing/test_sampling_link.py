@@ -25,7 +25,6 @@ except Exception as exp:
     raise RuntimeError(f"Calling the function failed due to the following error: {exp}")
 
 try:
-    (encoded_results,unmapped_results)=linker.annotate_and_encode_input_sequences(results,21,positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ)
+    (encoded_results,unmapped_results)=linker.annotate_and_encode_input_sequences(results,21,positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,True)
 except Exception as exp:
     raise RuntimeError(f"Calling the function failed due to the following error: {exp}")
-

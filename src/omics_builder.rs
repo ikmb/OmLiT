@@ -27,7 +27,7 @@ use crate::{peptides::{encode_sequence_rs, group_peptides_by_parent_rs}, protein
 pub fn prepare_data_for_seq_and_expression_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
     pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
     proteome:&HashMap<String,String>,
-    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
+    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>,only_one_parent_per_peptide:bool)->(
         /* the encoded data arrays, all have the same zero axis */
         (Array<u8,Ix2>/* Encode peptide sequences */,Array<u8,Ix2>/* Encode pseudo-sequences*/,
     Array<f32,Ix2>/* Encode gene expression*/,Array<u8,Ix2>/* Encoded labels*/)/* The encoded results from the array */, 
@@ -36,7 +36,11 @@ pub fn prepare_data_for_seq_and_expression_data(data_tuple:(Vec<String>/* Peptid
         (Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/)
    )
 {
-    let group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    let mut group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    if only_one_parent_per_peptide
+    {
+        group_by_parent.iter_mut().map(|(peptide,parents)|parents.truncate(1)); // tunicate the mapping to the first elements 
+    }
     // allocate vectors to hold the results 
     //----------
     // allocate vectors for holding the mapped data points 
@@ -122,7 +126,7 @@ pub fn prepare_data_for_seq_and_expression_data(data_tuple:(Vec<String>/* Peptid
 pub fn prepare_data_for_seq_exp_and_subcellular_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
     pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
     proteome:&HashMap<String,String>,
-    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
+    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>,only_one_parent_per_peptide:bool)->(
         /* the encoded data arrays, all have the same zero axis.*/    
         (Array<u8,Ix2>/* Encode peptide sequences */,Array<u8,Ix2>/* Encode pseudo-sequences*/,
         Array<f32,Ix2>/* Encode gene expression*/,Array<u8,Ix2> /* Encode the subcellular locations*/,
@@ -132,7 +136,11 @@ pub fn prepare_data_for_seq_exp_and_subcellular_data(data_tuple:(Vec<String>/* P
         (Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/)
     )
 {
-    let group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    let mut group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    if only_one_parent_per_peptide
+    {
+        group_by_parent.iter_mut().for_each(|(_,parents)|parents.truncate(1)); // tunicate the mapping to the first elements 
+    }
     // allocate vectors to hold the results 
     //----------
     // allocate vectors for holding the mapped data points 
@@ -229,7 +237,7 @@ pub fn prepare_data_for_seq_exp_and_subcellular_data(data_tuple:(Vec<String>/* P
 pub fn prepare_data_for_seq_sub_cell_location_and_context_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
     pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
     proteome:&HashMap<String,String>,
-    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
+    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>,only_one_parent_per_peptide:bool)->(
         /* the encoded data arrays, all have the same zero axis.*/    
             (Array<u8,Ix2>/* Encode peptide sequences */, Array<u8,Ix2>/* Encode pseudo-sequences*/,
         Array<u8,Ix2>/* Encode subcellular locations*/, Array<f32,Ix2>/*context vectors*/,
@@ -239,7 +247,11 @@ pub fn prepare_data_for_seq_sub_cell_location_and_context_data(data_tuple:(Vec<S
         (Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/)
     )
 {
-    let group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    let mut group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    if only_one_parent_per_peptide
+    {
+        group_by_parent.iter_mut().for_each(|(_,parents)|parents.truncate(1)); // tunicate the mapping to the first elements 
+    }
     // allocate vectors to hold the results 
     //----------
     // allocate vectors for holding the mapped data points 
@@ -348,7 +360,7 @@ pub fn prepare_data_for_seq_sub_cell_location_and_context_data(data_tuple:(Vec<S
 pub fn prepare_data_for_seq_exp_subcellular_and_context_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
     pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
     proteome:&HashMap<String,String>,
-    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
+    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>,only_one_parent_per_peptide:bool)->(
         /* the encoded data arrays, all have the same zero axis.*/
         (Array<u8,Ix2>/* Encode peptide sequences */,Array<u8,Ix2>/* Encode pseudo-sequences*/,
         Array<f32,Ix2>/* Encode gene expression*/,Array<u8,Ix2> /* Encode the subcellular locations*/,
@@ -358,7 +370,11 @@ pub fn prepare_data_for_seq_exp_subcellular_and_context_data(data_tuple:(Vec<Str
         /* The unmapped input */
     )
 {
-    let group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    let mut group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    if only_one_parent_per_peptide
+    {
+        group_by_parent.iter_mut().for_each(|(_,parents)|parents.truncate(1)); // tunicate the mapping to the first elements 
+    }
     // allocate vectors to hold the results 
     //----------
     // allocate vectors for holding the mapped data points 
@@ -470,17 +486,22 @@ pub fn prepare_data_for_seq_exp_subcellular_and_context_data(data_tuple:(Vec<Str
 pub fn prepare_data_for_seq_exp_subcellular_context_d2g_data(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/),
     pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
     proteome:&HashMap<String,String>,
-    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>)->(
+    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>,only_one_parent_per_peptide:bool)->(
         (Array<u8,Ix2>/* Encode peptide sequences */,Array<u8,Ix2>/* Encode pseudo-sequences*/,
         Array<f32,Ix2>/* Encode gene expression*/,Array<u8,Ix2> /* Encode the subcellular locations*/,
         Array<f32,Ix2> /*Encode context vectors*/,Array<u32,Ix2> /* Encode distance to glycosylation*/,
         Array<u8,Ix2>/* Encoded labels*/)/* The encoded results from the array */, 
         
-        (Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/)
+        (Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */,Vec<u8> /* Label*/, Vec<usize>)
         /* The unmapped input */
     )
 {
-    let group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    let mut group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    if only_one_parent_per_peptide
+    {
+        group_by_parent.iter_mut().for_each(|(_,parents)|parents.sort());
+        group_by_parent.iter_mut().for_each(|(_,parents)|parents.truncate(1)); // tunicate the mapping to the first elements 
+    }
     // allocate vectors to hold the results 
     //----------
     // allocate vectors for holding the mapped data points 
@@ -491,49 +512,80 @@ pub fn prepare_data_for_seq_exp_subcellular_context_d2g_data(data_tuple:(Vec<Str
     Vec::with_capacity(num_dp), Vec::with_capacity(num_dp)); // iterate over the elements of the array
     // allocate vectors for holding the unmapped data points 
     let (mut peptides_unmapped, mut pseudo_seq_unmapped, 
-        mut tissue_unmapped, mut labels_unmapped)=(Vec::with_capacity(num_dp),
-    Vec::with_capacity(num_dp), Vec::with_capacity(num_dp), Vec::with_capacity(num_dp)); // iterate over the elements of the array
+        mut tissue_unmapped, mut labels_unmapped, mut index_unmapped)=(Vec::with_capacity(num_dp),
+    Vec::with_capacity(num_dp), Vec::with_capacity(num_dp), Vec::with_capacity(num_dp),Vec::with_capacity(num_dp) ); // iterate over the elements of the array
     // compute a hashmap between each vector 
     let context_vec_each_tissue = create_context_map(&anno_table);
     // Loop over all input data-points
     //--------------------------------
     for idx in 0..data_tuple.0.len()/*Loop over all the peptides*/
     {
-        for protein in group_by_parent.get(&data_tuple.0[idx]).unwrap() /*Loop over all the parent of a peptide*/
+        match group_by_parent.get(&data_tuple.0[idx]) /*Loop over all the parent of a peptide*/
         {
-            match anno_table.get(&data_tuple.2[idx])
-            {
-                Some(tissue_table)=>
+           Some(parent_proteins)=> 
+           {
+                for protein in parent_proteins
                 {
-                    match tissue_table.get(protein)
+                    match anno_table.get(&data_tuple.2[idx])
                     {
-                        Some(protein_info)=>
+                        Some(tissue_table)=>
                         {
-                            context_vectors.push(context_vec_each_tissue.get(&data_tuple.2[idx]).unwrap().clone());
-                            peptides.push(data_tuple.0[idx].clone());
-                            d2g.push(compute_nearest_distance_to_glycosylation(&data_tuple.0[idx],
-                                &proteome.get(protein).unwrap(),protein_info.get_d2g()));
-                            pseudo_seq.push(pseudo_sequences.get(&data_tuple.1[idx]).unwrap().clone());
-                            subcellular_locations.push(get_sub_cellular_location(protein_info.get_sub_cellular_loc())); // get the subcellular locations
-                            gene_expression.push(protein_info.get_expression()); 
-                            labels.push(data_tuple.3[idx].clone())
+                            match tissue_table.get(protein)
+                            {
+                                Some(protein_info)=>
+                                {
+                                    match pseudo_sequences.get(&data_tuple.1[idx])
+                                    {
+                                        Some(seq)=>
+                                        {
+                                            context_vectors.push(context_vec_each_tissue.get(&data_tuple.2[idx]).unwrap().clone());
+                                            peptides.push(data_tuple.0[idx].clone());
+                                            d2g.push(compute_nearest_distance_to_glycosylation(&data_tuple.0[idx],
+                                                &proteome.get(protein).unwrap(),protein_info.get_d2g()));
+                                            pseudo_seq.push(seq.clone());
+                                            subcellular_locations.push(get_sub_cellular_location(protein_info.get_sub_cellular_loc())); // get the subcellular locations
+                                            gene_expression.push(protein_info.get_expression()); 
+                                            labels.push(data_tuple.3[idx].clone());
+                                        }
+                                        None=>
+                                        {
+                                            peptides_unmapped.push(data_tuple.0[idx].clone());
+                                            pseudo_seq_unmapped.push("UNK_PARENT_IN_TISSUE: ".to_string()+data_tuple.1[idx].as_str());
+                                            tissue_unmapped.push(data_tuple.2[idx].clone());
+                                            labels_unmapped.push(data_tuple.3[idx].clone());
+                                            index_unmapped.push(idx); 
+                                        }
+                                    }
+                                },
+                                None=>
+                                {
+                                    peptides_unmapped.push(data_tuple.0[idx].clone());
+                                    pseudo_seq_unmapped.push(data_tuple.1[idx].clone());
+                                    tissue_unmapped.push("UNK_PARENT_IN_TISSUE: ".to_string()+protein.as_str());
+                                    labels_unmapped.push(data_tuple.3[idx].clone());
+                                    index_unmapped.push(idx); 
+                                }
+                            }
                         },
                         None=>
                         {
                             peptides_unmapped.push(data_tuple.0[idx].clone());
-                            pseudo_seq_unmapped.push(data_tuple.1[idx].clone());
-                            tissue_unmapped.push("UNK_tissue: ".to_string()+data_tuple.2[idx].as_str());
+                            pseudo_seq_unmapped.push("UNK_allele: ".to_string()+data_tuple.1[idx].as_str());
+                            tissue_unmapped.push(data_tuple.2[idx].clone());
                             labels_unmapped.push(data_tuple.3[idx].clone());
+                            index_unmapped.push(idx); 
                         }
                     }
-                },
-                None=>
-                {
-                    peptides_unmapped.push(data_tuple.0[idx].clone());
-                    pseudo_seq_unmapped.push("UNK_allele: ".to_string()+data_tuple.1[idx].as_str());
-                    tissue_unmapped.push(data_tuple.2[idx].clone());
-                    labels_unmapped.push(data_tuple.3[idx].clone());
                 }
+            },
+            None=>
+            {
+                //panic!("This peptide can not be mapped: {}",&data_tuple.0[idx]);
+                peptides_unmapped.push(data_tuple.0[idx].clone());
+                pseudo_seq_unmapped.push("UNK_allele: ".to_string()+data_tuple.1[idx].as_str());
+                tissue_unmapped.push(data_tuple.2[idx].clone());
+                labels_unmapped.push(data_tuple.3[idx].clone());
+                index_unmapped.push(idx); 
             }
         }
     }
@@ -568,6 +620,141 @@ pub fn prepare_data_for_seq_exp_subcellular_context_d2g_data(data_tuple:(Vec<Str
     //-------------------
     (
         (encoded_peptide_seq, encoded_pseudo_seq, encoded_gene_expression, encoded_subcellular_location,encoded_context_vectors,encoded_distance_to_glyco,encoded_labels),// define the encoded training dataset 
-        (peptides_unmapped, pseudo_seq_unmapped, tissue_unmapped, labels_unmapped) //  unmapped training data 
+        (peptides_unmapped, pseudo_seq_unmapped, tissue_unmapped, labels_unmapped,index_unmapped) //  unmapped training data 
+    )
+}
+
+
+pub fn prepare_data_for_seq_exp_subcellular_context_d2g_data_no_label(data_tuple:(Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */),
+    pseudo_sequences:&HashMap<String,String> /* A hash map linking protein name to value */, max_len:usize /* maximum padding length */, 
+    proteome:&HashMap<String,String>,
+    anno_table:&HashMap<String, HashMap<String, ProteinInfo>>,only_one_parent_per_peptide:bool)->(
+        (Array<u8,Ix2>/* Encode peptide sequences */,Array<u8,Ix2>/* Encode pseudo-sequences*/,
+        Array<f32,Ix2>/* Encode gene expression*/,Array<u8,Ix2> /* Encode the subcellular locations*/,
+        Array<f32,Ix2> /*Encode context vectors*/,Array<u32,Ix2> /* Encode distance to glycosylation*/)/* The encoded results from the array */, 
+        
+        (Vec<String>/* Peptide */,Vec<String>/* Allele name */,Vec<String>/* Tissue name */, Vec<usize>)
+        /* The unmapped input */
+    )
+{
+    let mut group_by_parent=group_peptides_by_parent_rs(&data_tuple.0, proteome); 
+    if only_one_parent_per_peptide
+    {
+        group_by_parent.iter_mut().for_each(|(_,parents)|parents.sort());
+        group_by_parent.iter_mut().for_each(|(_,parents)|parents.truncate(1)); // tunicate the mapping to the first elements 
+    }
+    // allocate vectors to hold the results 
+    //----------
+    // allocate vectors for holding the mapped data points 
+    let num_dp=data_tuple.0.len()+1000; // an upper bound to avoid missing up with the peptides that happen in different proteins 
+    let (mut peptides, mut pseudo_seq, mut gene_expression, mut subcellular_locations,
+       mut context_vectors, mut d2g)=(Vec::with_capacity(num_dp),
+    Vec::with_capacity(num_dp), Vec::with_capacity(num_dp),Vec::with_capacity(num_dp), Vec::with_capacity(num_dp),
+    Vec::with_capacity(num_dp)); // iterate over the elements of the array
+    // allocate vectors for holding the unmapped data points 
+    let (mut peptides_unmapped, mut pseudo_seq_unmapped, 
+        mut tissue_unmapped, mut index_unmapped)=(Vec::with_capacity(num_dp),
+    Vec::with_capacity(num_dp), Vec::with_capacity(num_dp), Vec::with_capacity(num_dp) ); // iterate over the elements of the array
+    // compute a hashmap between each vector 
+    let context_vec_each_tissue = create_context_map(&anno_table);
+    // Loop over all input data-points
+    //--------------------------------
+    for idx in 0..data_tuple.0.len()/*Loop over all the peptides*/
+    {
+        match group_by_parent.get(&data_tuple.0[idx]) /*Loop over all the parent of a peptide*/
+        {
+           Some(parent_proteins)=> 
+           {
+                for protein in parent_proteins
+                {
+                    match anno_table.get(&data_tuple.2[idx])
+                    {
+                        Some(tissue_table)=>
+                        {
+                            match tissue_table.get(protein)
+                            {
+                                Some(protein_info)=>
+                                {
+                                    match pseudo_sequences.get(&data_tuple.1[idx])
+                                    {
+                                        Some(seq)=>
+                                        {
+                                            context_vectors.push(context_vec_each_tissue.get(&data_tuple.2[idx]).unwrap().clone());
+                                            peptides.push(data_tuple.0[idx].clone());
+                                            d2g.push(compute_nearest_distance_to_glycosylation(&data_tuple.0[idx],
+                                                &proteome.get(protein).unwrap(),protein_info.get_d2g()));
+                                            pseudo_seq.push(seq.clone());
+                                            subcellular_locations.push(get_sub_cellular_location(protein_info.get_sub_cellular_loc())); // get the subcellular locations
+                                            gene_expression.push(protein_info.get_expression()); 
+                                        }
+                                        None=>
+                                        {
+                                            peptides_unmapped.push(data_tuple.0[idx].clone());
+                                            pseudo_seq_unmapped.push("UNK_PSEUDO_SEQ: ".to_string()+data_tuple.1[idx].as_str());
+                                            tissue_unmapped.push(data_tuple.2[idx].clone());
+                                            index_unmapped.push(idx); 
+                                        }
+                                    }
+                                },
+                                None=>
+                                {
+                                    peptides_unmapped.push(data_tuple.0[idx].clone());
+                                    pseudo_seq_unmapped.push(data_tuple.1[idx].clone());
+                                    tissue_unmapped.push("UNK_PARENT_IN_TISSUE: ".to_string()+protein.as_str());
+                                    index_unmapped.push(idx); 
+                                }
+                            }
+                        },
+                        None=>
+                        {
+                            peptides_unmapped.push(data_tuple.0[idx].clone());
+                            pseudo_seq_unmapped.push("UNK_allele: ".to_string()+data_tuple.0[idx].as_str());
+                            tissue_unmapped.push(data_tuple.2[idx].clone());
+                            index_unmapped.push(idx); 
+                        }
+                    }
+                }
+            },
+            None=>
+            {
+                //panic!("This peptide can not be mapped: {}",&data_tuple.0[idx]);
+                peptides_unmapped.push(data_tuple.0[idx].clone());
+                pseudo_seq_unmapped.push("UNK_PARENT: ".to_string()+&data_tuple.0[idx].as_str());
+                tissue_unmapped.push(data_tuple.2[idx].clone());
+                index_unmapped.push(idx); 
+            }
+        }
+    }
+    // let's unroll the compute vectors
+    //---------------------------------
+    // First annotate subcellular location 
+    let mut subcellular_location_flatten=Vec::with_capacity(subcellular_locations.len()*1049);
+    for mut vec in  subcellular_locations
+    {
+        subcellular_location_flatten.append(&mut vec); 
+    }
+    // second the context vectors
+    //---------------------------
+    let num_rows=context_vectors.len();
+    let num_dp=context_vectors.iter().map(|vec|vec.len()).sum::<usize>(); 
+    let mut context_vector_flatten=Vec::with_capacity(num_dp);
+    for mut vec in  context_vectors
+    {
+        context_vector_flatten.append(&mut vec); 
+    }
+    // encode the results 
+    //-------------------
+    let encoded_peptide_seq=encode_sequence_rs(peptides,max_len); 
+    let encoded_pseudo_seq=encode_sequence_rs(pseudo_seq,34);
+    let encoded_gene_expression=Array::from_shape_vec((gene_expression.len(),1),gene_expression).unwrap();
+    let encoded_subcellular_location=Array::from_shape_vec((num_rows,1049),subcellular_location_flatten).unwrap();
+    let encoded_context_vectors=Array::from_shape_vec((num_rows,(num_dp/num_rows) as usize),context_vector_flatten).unwrap();
+    let encoded_distance_to_glyco=Array::from_shape_vec((d2g.len(),1), d2g).unwrap();
+
+    // Return the results 
+    //-------------------
+    (
+        (encoded_peptide_seq, encoded_pseudo_seq, encoded_gene_expression, encoded_subcellular_location,encoded_context_vectors,encoded_distance_to_glyco),// define the encoded training dataset 
+        (peptides_unmapped, pseudo_seq_unmapped, tissue_unmapped,index_unmapped) //  unmapped training data 
     )
 }

@@ -73,5 +73,6 @@ fn OmLiT(_py: Python, m: &PyModule) -> PyResult<()>
     m.add_function(wrap_pyfunction!(encode_sequences,m)?)?;
     m.add_function(wrap_pyfunction!(sample_negatives_from_positives_no_test,m)?)?; 
     m.add_function(wrap_pyfunction!(annotate_and_encode_input_sequences,m)?)?; 
+    m.add_function(wrap_pyfunction!(annotate_and_encode_input_sequences_no_label,m)?)?; 
     Ok(())
 }
