@@ -84,10 +84,10 @@ MAX_LEN=21
 # Define the omics from which the analysis will be conducted
 #-----------------------------------------------------------
 OMICS_LAYER=[
-    'Seq+Txp',
-    'Seq+Txp+SC',
-    'Seq+Txp+SC+Context',
-    'Seq+Txp+SC+Context+D2G',
+    'Seq+Exp',
+    'Seq+Exp+SC',
+    'Seq+Exp+SC+Context',
+    'Seq+Exp+SC+Context+D2G',
 ]
 
 omics_layer_name, run_time_cont, trial_cont, input_size=[],[],[],[]
@@ -99,17 +99,17 @@ for num_element in tqdm(NUM_ELEMENTS):
     for level in tqdm(OMICS_LAYER):
         print(f"{time.ctime()} INFO:: BenchMarking the performance using the Omics level: {level} and {num_element} peptides")
         for trial in range(NUM_TRIALS):
-            if method=='Seq+Txp':
+            if method=='Seq+Exp':
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp(database,
                         positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
                 end=time.time()
-            elif method=='Seq+Txp+SC':
+            elif method=='Seq+Exp+SC':
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell(database,
                         positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
                 end=time.time()
-            elif method=='Seq+Txp+SC+Context':
+            elif method=='Seq+Exp+SC+Context':
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell_context(database,
                         positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
@@ -117,7 +117,7 @@ for num_element in tqdm(NUM_ELEMENTS):
             else: 
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell_loc_context_d2g(database,
-                        positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
+                        positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE,True)
                 end=time.time()
             ## store the results 
             #---------------------------------
@@ -138,10 +138,10 @@ results_different_omics_layer['log_input_size']=[np.log2(num) for num in results
 
 TISSUES=['total PBMC','liver','colon','small intestine','kidney']
 OMICS_LAYER=[
-    'Seq+Txp',
-    'Seq+Txp+SC',
-    'Seq+Txp+SC+Context',
-    'Seq+Txp+SC+Context+D2G',
+    'Seq+Exp',
+    'Seq+Exp+SC',
+    'Seq+Exp+SC+Context',
+    'Seq+Exp+SC+Context+D2G',
 ]
 
 omics_layer_name, run_time_cont, trial_cont, input_size=[],[],[],[]
@@ -153,17 +153,17 @@ for num_element in tqdm(NUM_ELEMENTS):
     for level in tqdm(OMICS_LAYER):
         print(f"{time.ctime()} INFO:: BenchMarking the performance using the Omics level: {level} and {num_element} peptides")
         for trial in range(NUM_TRIALS):
-            if method=='Seq+Txp':
+            if method=='Seq+Exp':
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp(database,
                         positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
                 end=time.time()
-            elif method=='Seq+Txp+SC':
+            elif method=='Seq+Exp+SC':
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell(database,
                         positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
                 end=time.time()
-            elif method=='Seq+Txp+SC+Context':
+            elif method=='Seq+Exp+SC+Context':
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell_context(database,
                         positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
@@ -171,7 +171,7 @@ for num_element in tqdm(NUM_ELEMENTS):
             else: 
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell_loc_context_d2g(database,
-                        positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
+                        positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE,True)
                 end=time.time()
             ## store the results 
             #---------------------------------
@@ -191,10 +191,10 @@ results_different_omics_layer_5_tissues['log_input_size']=[np.log2(num) for num 
 #+++++++++++++++++++++
 ALLELES=['DRB1_1501','DRB1_1301','DRB1_1101','DRB1_0103','DRB1_0301']
 OMICS_LAYER=[
-    'Seq+Txp',
-    'Seq+Txp+SC',
-    'Seq+Txp+SC+Context',
-    'Seq+Txp+SC+Context+D2G',
+    'Seq+Exp',
+    'Seq+Exp+SC',
+    'Seq+Exp+SC+Context',
+    'Seq+Exp+SC+Context+D2G',
 ]
 
 omics_layer_name, run_time_cont, trial_cont, input_size=[],[],[],[]
@@ -206,17 +206,17 @@ for num_element in tqdm(NUM_ELEMENTS):
     for level in tqdm(OMICS_LAYER):
         print(f"{time.ctime()} INFO:: BenchMarking the performance using the Omics level: {level} and {num_element} peptides")
         for trial in range(NUM_TRIALS):
-            if method=='Seq+Txp':
+            if method=='Seq+Exp':
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp(database,
                         positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
                 end=time.time()
-            elif method=='Seq+Txp+SC':
+            elif method=='Seq+Exp+SC':
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell(database,
                         positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
                 end=time.time()
-            elif method=='Seq+Txp+SC+Context':
+            elif method=='Seq+Exp+SC+Context':
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell_context(database,
                         positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
@@ -224,7 +224,7 @@ for num_element in tqdm(NUM_ELEMENTS):
             else: 
                 start=time.time()
                 (train_data, test_data, unmapped_train, unmapped_test)=linker.generate_train_based_on_seq_exp_subcell_loc_context_d2g(database,
-                        positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE)
+                        positive_peptides,PATH2CASHED_DB,PSEUDO_SEQ,MAX_LEN,1,FOLD_NEG,TEST_SIZE,True)
                 end=time.time()
             ## store the results 
             #---------------------------------

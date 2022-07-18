@@ -18,7 +18,10 @@
 ///             a. Added an inference engine as defined in the (inference_engine) module of the Rust-code and added two python-sided functions to bind the inference engine to the python code. 
 ///             b. Increase the ability to customize the training of the data structure, were python-sided python functions were build to hookup into different steps of the preprocessing Rust pipeline
 ///             c. increasing the documentation of the underlining library structure.
-///             
+///     Version 0.1.2: 
+///         Minor changes to the library where:
+///          a. Undocumented function has been documented
+///          b. the function annotate_and_encode_input_for_pia_s has been added to the inference engine to provide a short cut for utilizing PIA-S   
 /// NOTE:
 ///     THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
 ///     INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -70,9 +73,9 @@ fn OmLiT(_py: Python, m: &PyModule) -> PyResult<()>
     m.add_function(wrap_pyfunction!(group_peptide_by_protein, m)?)?;
     m.add_function(wrap_pyfunction!(group_by_9mers, m)?)?;
     m.add_function(wrap_pyfunction!(encode_sequence, m)?)?;
-    m.add_function(wrap_pyfunction!(encode_sequences,m)?)?;
     m.add_function(wrap_pyfunction!(sample_negatives_from_positives_no_test,m)?)?; 
     m.add_function(wrap_pyfunction!(annotate_and_encode_input_sequences,m)?)?; 
     m.add_function(wrap_pyfunction!(annotate_and_encode_input_sequences_no_label,m)?)?; 
+    m.add_function(wrap_pyfunction!(annotate_and_encode_input_for_pia_s,m)?)?;
     Ok(())
 }

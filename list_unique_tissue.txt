@@ -1,0 +1,125 @@
+SH-SY5Y
+hTERT-HME1
+fHDF/TERT166
+HEK 293
+HDLM-2
+HL-60
+HBF TERT88
+ASC TERT1
+amygdala
+placenta
+BJ hTERT+ SV40 Large T+
+cervix
+Daudi
+HHSteC
+bone marrow
+ovary
+HMC-1
+U-937
+hTEC/SVTERT24-B
+NB-4
+kidney
+MCF7
+liver
+salivary gland
+retina
+CACO-2
+vagina
+HUVEC TERT2
+cerebellum
+hTERT-RPE1
+duodenum
+white matter
+SuSa
+U-266/84
+thyroid gland
+testis
+spinal cord
+BJ hTERT+
+OE19
+heart muscle
+pons
+PC-3
+endometrium
+THP-1
+midbrain
+choroid plexus
+tonsil
+RPTEC TERT1
+EFO-21
+TIME
+WM-115
+esophagus
+basal ganglia
+epididymis
+RPMI-8226
+BEWO
+BJ
+SCLC-21H
+U-87 MG
+JURKAT
+skin
+REH
+HAP1
+total PBMC
+U-251 MG
+AN3-CA
+prostate
+hippocampal formation
+SK-BR-3
+Karpas-707
+stomach
+urinary bladder
+adipose tissue
+rectum
+thalamus
+medulla oblongata
+U-138 MG
+breast
+gallbladder
+AF22
+pituitary gland
+SK-MEL-30
+HSkMC
+cerebral cortex
+ASC diff
+HaCaT
+GAMG
+Hep G2
+U-266/70
+A-431
+seminal vesicle
+NTERA-2
+olfactory bulb
+MOLT-4
+fallopian tube
+LHCN-M2
+lung
+HEL
+U-2 OS
+adrenal gland
+SiHa
+hypothalamus
+U-698
+small intestine
+parathyroid gland
+U-2197
+smooth muscle
+T-47d
+HBEC3-KT
+HeLa
+colon
+appendix
+spleen
+RT4
+RH-30
+pancreas
+CAPAN-2
+hTCEpi
+tongue
+K-562
+A549
+BJ hTERT+ SV40 Large T+ RasG12V
+lymph node
+skeletal muscle
+thymus

@@ -408,9 +408,16 @@ fn prepare_dataset_by_proteome_sampling_single_allele_and_tissue(data_index:Vec<
 }
 
 
-
-
-
+/// ### Summary 
+/// Prepare a dataset by proteome sampling with test splitting  
+/// 
+/// ### Parameters
+/// 1. positive_peptides: A vector of string represent positive peptides 
+/// 2. fold_neg: An integer representing the ratio of positive to negative ratio 
+/// 3. target_protein_seq: a vector of tuples representing the target protein sequences
+/// 
+/// ### Returns 
+///   a tuple of two vectors representing the peptide sequence and the labels
 #[inline(always)]
 fn prepare_dataset_by_proteome_sampling_single_allele_and_tissue_no_test(mut positive_peptides:Vec<String>, 
     fold_neg:u32, target_protein_seq:&Vec<(String,String)>)->(Vec<String>,Vec<u8>)
@@ -437,23 +444,6 @@ fn prepare_dataset_by_proteome_sampling_single_allele_and_tissue_no_test(mut pos
     // return the results 
     (seq,labels)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /// ### Summary 
 /// Create a negative database for peptide sampling, the database is build as a hashmap with keys composite of the name of each tissue
