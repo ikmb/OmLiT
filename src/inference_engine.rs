@@ -6,7 +6,7 @@ use ndarray::Dim;
 use numpy::{PyArray, ToPyArray};
 use pyo3::prelude::*;
 
-use crate::{peptides::encode_sequence_rs, functions::read_cashed_db, utils::{read_pseudo_seq}, omics_builder::{prepare_data_for_seq_exp_subcellular_context_d2g_data, prepare_data_for_seq_exp_subcellular_context_d2g_data_no_label}}; 
+use crate::{peptides::encode_sequence_rs, functions::read_cashed_db, utils::{read_pseudo_seq}, omics_builder::{prepare_data_for_seq_exp_subcellular_context_d2g_data, prepare_data_for_seq_exp_subcellular_context_d2g_data_no_label, prepare_data_for_seq_exp_subcellular_context_d2g_data_no_label_protein_linked}}; 
 
 /// ### Signature 
 /// Encode_sequences(input_seq:List[str],max_len:usize)->np.ndarray
@@ -95,7 +95,7 @@ pub fn annotate_and_encode_input_sequences<'py>(py:Python<'py>,
 
 
 
-// ### Signature 
+/// ### Signature 
 /// annotate_and_encode_input_sequences_no_label(inputs:Tuple[List[str] # Peptide name 
 ///                                     ,List[str] # Allele name 
 ///                                     ,List[str] # Tissue name
@@ -146,6 +146,71 @@ pub fn annotate_and_encode_input_sequences_no_label<'py>(py:Python<'py>,
     //println!("Annotating {} data points starting at ... {}",input.0.len(),Utc::now()); 
     let (encoded_results, unmapped_results)=prepare_data_for_seq_exp_subcellular_context_d2g_data_no_label(input,
         &pseudo_seq_map,max_len,&proteome,&database,only_one_parent_per_peptide); 
+    
+    // preparing input arrays ...
+    //---------------------------
+    (
+        /* Generate the mapped arrays*/
+        (encoded_results.0.to_pyarray(py),encoded_results.1.to_pyarray(py),
+        encoded_results.2.to_pyarray(py),encoded_results.3.to_pyarray(py),
+        encoded_results.4.to_pyarray(py),encoded_results.5.to_pyarray(py)),
+        /* Generate the unmapped arrays*/
+        unmapped_results
+    ) 
+}
+
+// ### Signature 
+/// annotate_and_encode_input_sequences_no_label(inputs:Tuple[List[str] # Peptide name 
+///                                     ,List[str] # Allele name 
+///                                     ,List[str] # Tissue name
+///                                     ],
+///                                     max_len:int # maximum peptide length, shorter peptides are padded to this length while longer are trimmed,
+///                                     proteome: Dict[str,str] # a hashmap of protein ids to protein sequence,
+///                                     path2cashed_db: str, the path to load the cashed database 
+///                                     path2pseudo_seq: str, the path to load the pseudo sequences, used for generating the any array of pseudo sequences
+///                                     )->Tuple[
+///                                         Tuple[
+///                                             np.ndarray[None,max_len] # encoded peptide sequences,
+///                                             np.ndarray[None,34] # encoded HLA pseudo-sequences,
+///                                             np.ndarray[None,f32] # the encoded gene expression database,
+///                                             np.ndarray[None,1049]# encoded subcellular locations,
+///                                             np.ndarray[None,16_519] # the context vector,
+///                                             np.ndarray[None,1] # the distance to the nearest glycosylation site
+///                                         ], # this tuple represent the mapped and correctly encoded protein sequences
+///                                         Tuple[
+///                                               List[str], # List of peptides
+///                                               List[str], # List of alleles
+///                                               List[str], # List of Tissue names
+///                                               ]
+///                                     ]
+/// ### Summary 
+/// An inference preprocessing engine that can be used to annotate an input collection of peptides and returns two tuple, the first tuple represent the annotated and encoded input peptides,
+/// meanwhile the second tuple represent the unmapped input data points. This function does not require the label of the encoded input peptide
+
+#[pyfunction]
+pub fn annotate_and_encode_input_sequences_no_label_protein_linked<'py>(py:Python<'py>, 
+    input:(Vec<String>/* List of peptides*/,Vec<String>/* list of parent proteins*/, Vec<String> /*List of alleles*/,Vec<String> /*list of tissue names*/),
+    max_len:usize,
+    proteome:HashMap<String,String>,
+    path2cashed_db:String,
+    path2pseudo_seq:String,
+)->(
+    (&'py PyArray<u8,Dim<[usize;2]>> /* Peptide sequences*/, &'py PyArray<u8,Dim<[usize;2]>> /*Pseudo-sequences*/,
+     &'py PyArray<f32,Dim<[usize;2]>> /* Expression values*/, &'py PyArray<u8,Dim<[usize;2]>> /*Sub-cellular location values*/,
+     &'py PyArray<f32,Dim<[usize;2]>> /* Context vectors*/, &'py PyArray<u32,Dim<[usize;2]>> /*Distance to glycosylation*/),
+    (Vec<String>/* Peptides*/, Vec<String>/*Alleles*/,Vec<String>/*Tissue names*/, Vec<usize> /* The index of un mapped indices*/)
+    )// unmapped train data points 
+{
+
+    // Load the cashed database
+    //println!("Loading the annotation and Pseudo Sequence database ... {}",Utc::now());  
+    let database=read_cashed_db(&Path::new(&path2cashed_db));
+    let pseudo_seq_map = read_pseudo_seq(&Path::new(&path2pseudo_seq));
+    
+    // Build a target proteomes to analyze the data 
+    //println!("Annotating {} data points starting at ... {}",input.0.len(),Utc::now()); 
+    let (encoded_results, unmapped_results)=prepare_data_for_seq_exp_subcellular_context_d2g_data_no_label_protein_linked(input,
+        &pseudo_seq_map,max_len,&proteome,&database); 
     
     // preparing input arrays ...
     //---------------------------

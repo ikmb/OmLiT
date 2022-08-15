@@ -1,6 +1,6 @@
 [package]
 name = "OmLiT"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2018"
 authors = ["Hesham ElAbd <h.elabd@ikmb.uni-kiel.de>"]
 

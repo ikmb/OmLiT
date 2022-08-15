@@ -4,9 +4,9 @@
 /// Author: Hesham ElAbd 
 /// Contact: h.elabd@ikmb.uni-kiel.de
 /// Copyrights: Institute of clinical molecular biology, Kiel, Germany.
-/// Version: 0.1.1 alpha
-/// Release data: 04.03.2022
-/// Initial Release date: 10.02.2022
+/// Version: 0.1.3alpha
+/// Release data: 15.08.2022
+/// Initial Release date: 10.02.2022 (Version 0.1.0)
 /// Rust Code: The functions in this module provide a thin wrapper a round the rust code which is used for executing all the heavy-lifting jobs.
 ///         To skip the current module and work with the Rust-code directly or to extend the rust code, check the code defined in the file omics_builder.rs.
 /// Bug Reporting and tracking: 
@@ -21,7 +21,14 @@
 ///     Version 0.1.2: 
 ///         Minor changes to the library where:
 ///          a. Undocumented function has been documented
-///          b. the function annotate_and_encode_input_for_pia_s has been added to the inference engine to provide a short cut for utilizing PIA-S   
+///          b. The function annotate_and_encode_input_for_pia_s has been added to the inference engine to provide a short cut for utilizing PIA-S
+///     Version 0.1.3: 
+///         Minor changes to the library where:
+///         a. Undocumented function has been documented
+///         b. The function prepare_data_for_seq_exp_subcellular_context_d2g_data_no_label_protein_linked and has been added to the Omics builder to provide support for annotation peptides that do not
+///             exist in reference, e.g. mutated human peptides. Here, the back mapping is skipped and the function uses user provided mapping. 
+///         c. The function annotate_and_encode_input_sequences_no_label_protein_linked has been added to the inference engine to enable the OmLiT engine to encode human peptides that does not exist in the reference
+///            proteome, e.g. neoepitopes and mutated peptides.
 /// NOTE:
 ///     THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
 ///     INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -77,5 +84,6 @@ fn OmLiT(_py: Python, m: &PyModule) -> PyResult<()>
     m.add_function(wrap_pyfunction!(annotate_and_encode_input_sequences,m)?)?; 
     m.add_function(wrap_pyfunction!(annotate_and_encode_input_sequences_no_label,m)?)?; 
     m.add_function(wrap_pyfunction!(annotate_and_encode_input_for_pia_s,m)?)?;
+    m.add_function(wrap_pyfunction!(annotate_and_encode_input_sequences_no_label_protein_linked,m)?)?;
     Ok(())
 }
